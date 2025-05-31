@@ -1,7 +1,5 @@
-package de.joker.kloud
+package de.joker.kloud.master
 
-import com.github.dockerjava.core.DefaultDockerClientConfig
-import com.github.dockerjava.core.DockerClientBuilder
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 
@@ -16,9 +14,5 @@ val json = Json {
 }
 
 fun main(args: Array<String>) {
-    val b = DefaultDockerClientConfig.createDefaultConfigBuilder().build()
-
-    val docker = b.run {
-        DockerClientBuilder.getInstance(this).build()
-    }
+    KloudInstance.start()
 }

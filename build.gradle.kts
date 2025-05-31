@@ -7,6 +7,7 @@ allprojects {
     group = "de.joker"
     repositories {
         mavenCentral()
+        maven("https://repo.fruxz.dev/releases/")
     }
 
     version = "0.1.0-SNAPSHOT"

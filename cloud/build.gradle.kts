@@ -6,5 +6,10 @@ plugins {
 
 dependencies {
     implementation(libs.bundles.backend)
-    implementation(libs.dockerJava)
+    implementation(libs.bundles.utilities)
+    implementation(project(":shared"))
+}
+
+application {
+    mainClass.set("de.joker.kloud.ApplicationKt")
 }

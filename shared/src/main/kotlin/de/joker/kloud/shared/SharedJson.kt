@@ -1,0 +1,21 @@
+package de.joker.kloud.shared
+
+import de.joker.kloud.shared.events.CreateServerEvent
+import de.joker.kloud.shared.events.IEvent
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
+
+val eventModule = SerializersModule {
+    polymorphic(IEvent::class) {
+        subclass(CreateServerEvent::class)
+        // Add other events here
+    }
+}
+
+val eventJson = Json {
+    serializersModule = eventModule
+    classDiscriminator = "_type"
+    ignoreUnknownKeys = true
+}
