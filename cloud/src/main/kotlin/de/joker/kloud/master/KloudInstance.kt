@@ -1,17 +1,14 @@
 package de.joker.kloud.master
 
+import de.joker.kloud.master.core.ServerManager
+import de.joker.kloud.master.data.TemplateManager
 import de.joker.kloud.master.docker.DockerManager
 import de.joker.kloud.master.redis.RedisManager
-import de.joker.kloud.shared.events.CreateServerEvent
-import de.joker.kloud.shared.events.IEvent
-import de.joker.kloud.shared.eventJson
 import kotlinx.serialization.InternalSerializationApi
-import kotlinx.serialization.serializer
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import org.koin.java.KoinJavaComponent.inject
 import org.koin.logger.slf4jLogger
-import kotlin.getValue
 
 object KloudInstance {
 
@@ -23,6 +20,14 @@ object KloudInstance {
         single { RedisManager() }
     }
 
+    val templateModule = module {
+        single { TemplateManager() }
+    }
+
+    val serverModule = module {
+        single { ServerManager() }
+    }
+
     @OptIn(InternalSerializationApi::class)
     fun start() {
         startKoin {
@@ -30,28 +35,43 @@ object KloudInstance {
             modules(
                 dockerModule,
                 redisModule,
+                templateModule,
+                serverModule,
                 module {
                     single { json }
                 }
             )
         }
 
-        // Initialize Docker client and pull images
         val redis: RedisManager by inject(RedisManager::class.java)
         val docker: DockerManager by inject(DockerManager::class.java)
+        val template: TemplateManager by inject(TemplateManager::class.java)
+        val serverManager: ServerManager by inject(ServerManager::class.java)
+
 
         redis.connect()
         docker.loadDockerClient()
 
-        // temp keep alive
-        while (true) {
-            val event = CreateServerEvent(
-                template = "d"
-            )
-            redis.jedisPool.resource.use { jedis ->
-                jedis.publish("servers", eventJson.encodeToString(IEvent::class.serializer(), event))
+        template.loadTemplatesFromFile()
+
+        serverManager.startup()
+
+        // add shutdown hook to close resources
+        Runtime.getRuntime().addShutdownHook(Thread {
+            serverManager.cleanup {
+                redis.close()
             }
-            Thread.sleep(1000) // Sleep for 1 second before next iteration
+        })
+
+        while (true) {
+            // check input from console
+            val input = readLine()
+            if (input == null || input.lowercase() == "exit") {
+                println("Exiting KloudInstance...")
+                break
+            } else {
+                println("Received input: $input")
+            }
         }
     }
 }

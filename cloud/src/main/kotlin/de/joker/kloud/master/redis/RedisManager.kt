@@ -9,11 +9,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.serializer
+import org.koin.core.component.KoinComponent
 import redis.clients.jedis.JedisPool
 import redis.clients.jedis.JedisPoolConfig
 import redis.clients.jedis.JedisPubSub
 
-class RedisManager {
+class RedisManager : KoinComponent {
     lateinit var jedisPool: JedisPool
     private lateinit var jedisPubSub: JedisPubSub
 
@@ -66,5 +67,41 @@ class RedisManager {
         }
 
         logger.info("Redis client initialized successfully.")
+    }
+
+    fun addToList(key: String, value: String) {
+        try {
+            jedisPool.resource.use { jedis ->
+                jedis.rpush(key, value)
+                logger.info("Added value '$value' to list '$key'")
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to add value '$value' to list '$key'", e)
+        }
+    }
+
+    fun getList(key: String): List<String> {
+        return jedisPool.resource.use { jedis ->
+            val list = jedis.lrange(key, 0, -1) ?: emptyList()
+            logger.info("Retrieved list '$key': $list")
+            list
+        }
+
+    }
+
+    fun removeFromList(key: String, value: String) {
+        runCatching {
+            jedisPool.resource.use { jedis ->
+                jedis.lrem(key, 0, value)
+                logger.info("Removed value '$value' from list '$key'")
+            }
+        }
+    }
+
+    fun close() {
+        logger.info("Closing Redis connection...")
+        jedisPubSub.unsubscribe()
+        jedisPool.close()
+        logger.info("Redis connection closed.")
     }
 }
