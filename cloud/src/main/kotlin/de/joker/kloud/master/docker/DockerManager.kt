@@ -2,6 +2,7 @@ package de.joker.kloud.master.docker
 
 import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.command.CreateContainerResponse
+import com.github.dockerjava.api.command.InspectContainerResponse
 import com.github.dockerjava.api.model.Bind
 import com.github.dockerjava.api.model.HostConfig
 import com.github.dockerjava.api.model.PortBinding
@@ -10,10 +11,15 @@ import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientBuilder
 import de.joker.kloud.master.data.Template
 import de.joker.kloud.master.logger
+import de.joker.kloud.master.redis.RedisManager
+import de.joker.kloud.master.redis.RedisNames
+import de.joker.kloud.shared.events.ServerState
+import de.joker.kloud.shared.events.ServerUpdateStateEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import java.io.File
 
 class DockerManager : KoinComponent {
@@ -104,11 +110,21 @@ class DockerManager : KoinComponent {
         onDeleted?.invoke()
     }
 
+    fun getContainerState(containerId: String): InspectContainerResponse.ContainerState? {
+        return try {
+            dockerClient.inspectContainerCmd(containerId).exec().state
+        } catch (e: Exception) {
+            logger.error("Failed to inspect container $containerId: ${e.message}")
+            null
+        }
+    }
+
     fun createContainer(
         template: Template,
         serverName: String,
         onFinished: ((container: CreateContainerResponse) -> Unit)? = null
     ) {
+        val redis: RedisManager by inject()
         val free = DockerUtils.findClosestPortTo25565() ?: throw IllegalStateException("No free port found for container ${template.name}")
 
         val ports = mapOf( // TODO: make this dynamic
@@ -120,6 +136,13 @@ class DockerManager : KoinComponent {
         val fullEnv = template.environment.toMutableMap().apply {
             putIfAbsent("KLOUD_TEMPLATE", template.name)
             putIfAbsent("EULA", "TRUE")
+        }
+
+        val doesServerExist = getContainerState(serverName) != null
+
+        if (doesServerExist) {
+            logger.warn("Container with name $serverName already exists. Please choose a different name.")
+            return
         }
 
         scope.launch {
@@ -181,7 +204,18 @@ class DockerManager : KoinComponent {
                 }
             }
 
+            val event = ServerUpdateStateEvent(
+                serverId = container.id,
+                state = ServerState.STARTING
+            )
+            redis.emitEvent(RedisNames.SERVERS, event)
+
             startContainerInBackground(container.id) {
+                val startedEvent = ServerUpdateStateEvent(
+                    serverId = container.id,
+                    state = ServerState.RUNNING
+                )
+                redis.emitEvent(RedisNames.SERVERS, startedEvent)
                 onFinished?.invoke(container)
             }
             logger.info("Container ${template.name} created with ID ${container.id}")

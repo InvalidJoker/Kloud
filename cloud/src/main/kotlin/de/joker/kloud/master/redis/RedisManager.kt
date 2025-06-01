@@ -98,6 +98,22 @@ class RedisManager : KoinComponent {
         }
     }
 
+    @OptIn(InternalSerializationApi::class)
+    fun emitEvent(channel: String, event: IEvent) {
+        try {
+            jedisPool.resource.use { jedis ->
+                jedis.publish(channel, eventJson.encodeToString(IEvent::class.serializer(), event))
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to publish event to channel '$channel'", e)
+        }
+    }
+
+    @OptIn(InternalSerializationApi::class)
+    fun emitEvent(channel: RedisNames, event: IEvent) {
+        emitEvent(channel.channel, event)
+    }
+
     fun close() {
         logger.info("Closing Redis connection...")
         jedisPubSub.unsubscribe()

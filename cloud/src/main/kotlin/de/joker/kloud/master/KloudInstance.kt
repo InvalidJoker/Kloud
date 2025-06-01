@@ -64,7 +64,6 @@ object KloudInstance {
         })
 
         while (true) {
-            // check input from console
             val input = readLine()
             if (input == null || input.lowercase() == "exit") {
                 println("Exiting KloudInstance...")
