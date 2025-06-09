@@ -1,9 +1,10 @@
 package de.joker.kloud.master
 
 import de.joker.kloud.master.core.ServerManager
-import de.joker.kloud.master.data.TemplateManager
+import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.master.docker.DockerManager
 import de.joker.kloud.master.redis.RedisManager
+import dev.fruxz.ascend.json.globalJson
 import kotlinx.serialization.InternalSerializationApi
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
@@ -38,7 +39,7 @@ object KloudInstance {
                 templateModule,
                 serverModule,
                 module {
-                    single { json }
+                    single { globalJson }
                 }
             )
         }
@@ -48,11 +49,10 @@ object KloudInstance {
         val template: TemplateManager by inject(TemplateManager::class.java)
         val serverManager: ServerManager by inject(ServerManager::class.java)
 
+        template.loadTemplatesFromFile()
 
         redis.connect()
         docker.loadDockerClient()
-
-        template.loadTemplatesFromFile()
 
         serverManager.startup()
 

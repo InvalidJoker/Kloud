@@ -7,7 +7,11 @@ allprojects {
     group = "de.joker"
     repositories {
         mavenCentral()
-        maven("https://repo.fruxz.dev/releases/")
+        maven("https://nexus.fruxz.dev/repository/public/")
+        maven {
+            name = "papermc"
+            url = uri("https://repo.papermc.io/repository/maven-public/")
+        }
     }
 
     version = "0.1.0-SNAPSHOT"

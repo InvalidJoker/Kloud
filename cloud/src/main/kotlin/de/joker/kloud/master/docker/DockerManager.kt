@@ -9,10 +9,11 @@ import com.github.dockerjava.api.model.PortBinding
 import com.github.dockerjava.api.model.Volume
 import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientBuilder
-import de.joker.kloud.master.data.Template
-import de.joker.kloud.master.logger
+import de.joker.kloud.master.template.Template
+import de.joker.kloud.master.template.TemplateManager
+import de.joker.kloud.shared.logger
 import de.joker.kloud.master.redis.RedisManager
-import de.joker.kloud.master.redis.RedisNames
+import de.joker.kloud.shared.RedisNames
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.events.ServerUpdateStateEvent
 import kotlinx.coroutines.CoroutineScope
@@ -40,16 +41,17 @@ class DockerManager : KoinComponent {
 
         logger.info("Docker client initialized successfully.")
 
-        scope.launch {
-            ServerType.entries.forEach { serverType ->
-                DockerUtils.pullImage(
-                    dockerClient,
-                    serverType.image
-                )
-            }
+        val templateManager: TemplateManager by inject()
 
-            logger.info("Docker images pulled successfully.")
+        templateManager.listTemplates().forEach {
+            val success = DockerUtils.pullImage(dockerClient, it.image)
+            if (success) {
+                logger.info("Image ${it.image} pulled successfully.")
+            } else {
+                logger.error("Failed to pull image ${it.image}.")
+            }
         }
+
     }
 
     fun copyFilesToContainer(
@@ -122,7 +124,7 @@ class DockerManager : KoinComponent {
     fun createContainer(
         template: Template,
         serverName: String,
-        onFinished: ((container: CreateContainerResponse) -> Unit)? = null
+        onFinished: ((container: CreateContainerResponse, port: Int) -> Unit)? = null
     ) {
         val redis: RedisManager by inject()
         val free = DockerUtils.findClosestPortTo25565() ?: throw IllegalStateException("No free port found for container ${template.name}")
@@ -216,7 +218,7 @@ class DockerManager : KoinComponent {
                     state = ServerState.RUNNING
                 )
                 redis.emitEvent(RedisNames.SERVERS, startedEvent)
-                onFinished?.invoke(container)
+                onFinished?.invoke(container, free)
             }
             logger.info("Container ${template.name} created with ID ${container.id}")
         }

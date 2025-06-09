@@ -8,5 +8,6 @@ pluginManagement {
 
 include(":cloud")
 include(":shared")
+include(":proxy")
 
 rootProject.name = "Kloud"

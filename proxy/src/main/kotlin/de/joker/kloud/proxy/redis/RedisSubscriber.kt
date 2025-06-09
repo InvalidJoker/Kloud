@@ -1,8 +1,8 @@
-package de.joker.kloud.master.redis
+package de.joker.kloud.proxy.redis
 
 import de.joker.kloud.shared.RedisAdapter
 import org.koin.core.component.KoinComponent
 
-class RedisManager : KoinComponent, RedisAdapter(
+class RedisSubscriber : KoinComponent, RedisAdapter(
     listOf(ServerHandler())
 )

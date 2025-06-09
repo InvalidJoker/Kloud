@@ -7,6 +7,8 @@ plugins {
 dependencies {
     implementation(libs.bundles.backend)
     implementation(libs.bundles.utilities)
+    implementation(libs.bundles.redis)
+    implementation(libs.bundles.koin)
     implementation(project(":shared"))
 }
 

@@ -1,4 +1,4 @@
-package de.joker.kloud.master.core
+package de.joker.kloud.shared.common
 
 import kotlinx.serialization.Serializable
 
@@ -7,4 +7,8 @@ data class RedisServer(
     val containerId: String,
     val templateName: String,
     val serverName: String,
+    var serverData: ServerData,
+    val connectionPort: Int,
+    val type: ServerType,
+    val lobby: Boolean = false,
 )

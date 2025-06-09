@@ -1,4 +1,4 @@
-package de.joker.kloud.master.redis
+package de.joker.kloud.shared
 
 enum class RedisNames(
     val channel: String,

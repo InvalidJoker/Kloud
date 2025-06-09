@@ -12,7 +12,6 @@ val eventModule = SerializersModule {
     polymorphic(IEvent::class) {
         subclass(CreateServerEvent::class)
         subclass(ServerUpdateStateEvent::class)
-        // Add other events here
     }
 }
 

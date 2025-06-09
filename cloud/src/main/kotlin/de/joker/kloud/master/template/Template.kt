@@ -1,5 +1,6 @@
-package de.joker.kloud.master.data
+package de.joker.kloud.master.template
 
+import de.joker.kloud.shared.common.ServerType
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -8,6 +9,7 @@ data class Template(
     val image: String,
     val environment: Map<String, String>,
     val lobby: Boolean = false,
+    val type: ServerType = ServerType.PROXIED_SERVER,
     val requiredPermissions: List<String> = emptyList(),
     val dynamic: DynamicTemplate? = null, // if set server is dynamic and can scale
 ) {

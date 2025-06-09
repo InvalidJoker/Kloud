@@ -1,7 +1,8 @@
-package de.joker.kloud.master.data
+package de.joker.kloud.master.template
 
-import de.joker.kloud.master.json
-import de.joker.kloud.master.logger
+import de.joker.kloud.shared.common.ServerType
+import de.joker.kloud.shared.logger
+import dev.fruxz.ascend.json.globalJson
 import org.koin.core.component.KoinComponent
 import java.io.File
 
@@ -29,15 +30,28 @@ class TemplateManager : KoinComponent{
 
         if (file.exists()) {
             val content = file.readText()
-            val loadedTemplates = json.decodeFromString<List<Template>>(content)
-            loadedTemplates.forEach { addTemplate(it) }
+            val loadedTemplates = globalJson.decodeFromString<List<Template>>(content)
+
+            loadedTemplates.forEach {
+                if (templates.containsKey(it.name)) {
+                    logger.warn("Template with name '${it.name}' already exists. Overwriting it.")
+                }
+
+                if (it.image.isBlank()) {
+                    logger.error("Template '${it.name}' has an empty image field. Skipping this template.")
+                    return@forEach
+                }
+
+                addTemplate(it)
+            }
         } else {
             val defaultTemplate = Template(
-                name = "default",
+                name = "lobby",
                 image = "itzg/minecraft-server",
                 environment = mapOf(
                     "TYPE" to "PAPER",
                 ),
+                type = ServerType.PROXIED_SERVER,
                 lobby = true,
                 requiredPermissions = emptyList(),
                 dynamic = null
@@ -46,7 +60,6 @@ class TemplateManager : KoinComponent{
             logger.warn("Templates file not found: ${file.absolutePath}. No templates loaded.")
         }
 
-        // create template directories if they do not exist
         templates.forEach { (name, template) ->
             val dir = File("templates/$name")
             if (!dir.exists()) {

@@ -11,9 +11,11 @@ ktor = "3.1.3"
 koin = "4.0.4"
 dockerJava = "3.5.1"
 ascend = "2025.5-c701147"
+stacked = "2025.5-3733615"
 kotlinLogging = "7.0.3"
 logback = "1.5.18"
 redis = "6.0.0"
+velocity = "3.4.0-SNAPSHOT"
 
 [libraries]
 ascend = { module = "dev.fruxz:ascend", version.ref = "ascend" }
@@ -35,6 +37,9 @@ koinSlf4j = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" 
 dockerJava = { module = "com.github.docker-java:docker-java", version.ref = "dockerJava" }
 logbackClassic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
+velocity = { module = "com.velocitypowered:velocity-api", version.ref = "velocity" }
+
+stacked = { module = "dev.fruxz:stacked", version.ref = "stacked" }
 
 # Libraries can be bundled together for easier import
 [bundles]
@@ -44,16 +49,14 @@ backend = [
     "ktorServerCio",
     "ktorServerContentNegotiation",
     "ktorSerializationKotlinxJson",
-    "koinCore",
-    "koinKtor",
-    "koinSlf4j",
-    "redis",
     "dockerJava",
 ]
 utilities = [
     "ascend",
     "logbackClassic"
 ]
+redis = ["redis"]
+koin = ["koinCore", "koinKtor", "koinSlf4j"]
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
