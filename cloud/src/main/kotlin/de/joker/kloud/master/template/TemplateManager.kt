@@ -45,6 +45,17 @@ class TemplateManager : KoinComponent{
                 addTemplate(it)
             }
         } else {
+            val proxy = Template(
+                name = "proxy",
+                image = "itzg/minecraft-proxy",
+                environment = mapOf(
+                    "TYPE" to "BUNGEECORD",
+                ),
+                type = ServerType.PROXY,
+                lobby = false,
+                requiredPermissions = emptyList(),
+                dynamic = null
+            )
             val defaultTemplate = Template(
                 name = "lobby",
                 image = "itzg/minecraft-server",

@@ -20,20 +20,28 @@ tasks {
     }
 }
 
+abstract class GenerateBuildConfigTask : DefaultTask() {
+    @get:Input
+    abstract val version: Property<String>
 
-tasks.register("generateBuildConfig") {
-    val outputDir = project.layout.buildDirectory.dir("generated/source/buildConfig").get().asFile
-    outputs.dir(outputDir)
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
 
-    doLast {
-        outputDir.mkdirs()
-        val buildConfigFile = outputDir.resolve("BuildConstants.kt")
+    @TaskAction
+    fun generate() {
+        val buildConfigFile = outputDir.get().file("BuildConstants.kt").asFile
+        buildConfigFile.parentFile.mkdirs()
         buildConfigFile.writeText("""
             object BuildConstants {
-                const val VERSION = "${rootProject.version}"
+                const val VERSION = "${version.get()}"
             }
         """.trimIndent())
     }
+}
+
+tasks.register<GenerateBuildConfigTask>("generateBuildConfig") {
+    version.set(rootProject.version.toString())
+    outputDir.set(layout.buildDirectory.dir("generated/source/buildConfig"))
 }
 
 sourceSets.main {

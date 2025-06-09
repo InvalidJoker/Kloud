@@ -12,14 +12,17 @@ koin = "4.0.4"
 dockerJava = "3.5.1"
 ascend = "2025.5-c701147"
 stacked = "2025.5-3733615"
-kotlinLogging = "7.0.3"
 logback = "1.5.18"
 redis = "6.0.0"
 velocity = "3.4.0-SNAPSHOT"
+kotlinDotenv = "6.5.1"
+kUtils = "beta-0.0.2"
 
 [libraries]
 ascend = { module = "dev.fruxz:ascend", version.ref = "ascend" }
 redis = { module = "redis.clients:jedis", version.ref = "redis" }
+stacked = { module = "dev.fruxz:stacked", version.ref = "stacked" }
+kotlinDotenv = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "kotlinDotenv" }
 
 kotlinxDatetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 kotlinxSerialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJSON" }
@@ -39,7 +42,8 @@ logbackClassic = { module = "ch.qos.logback:logback-classic", version.ref = "log
 
 velocity = { module = "com.velocitypowered:velocity-api", version.ref = "velocity" }
 
-stacked = { module = "dev.fruxz:stacked", version.ref = "stacked" }
+kUtilsCore = { module = "com.github.InvalidJoker.KUtils:core", version.ref = "kUtils" }
+
 
 # Libraries can be bundled together for easier import
 [bundles]
@@ -53,7 +57,9 @@ backend = [
 ]
 utilities = [
     "ascend",
-    "logbackClassic"
+    "logbackClassic",
+    "kUtilsCore",
+    "kotlinDotenv"
 ]
 redis = ["redis"]
 koin = ["koinCore", "koinKtor", "koinSlf4j"]

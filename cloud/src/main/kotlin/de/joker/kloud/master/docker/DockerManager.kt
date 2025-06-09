@@ -9,6 +9,7 @@ import com.github.dockerjava.api.model.PortBinding
 import com.github.dockerjava.api.model.Volume
 import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientBuilder
+import de.joker.kloud.master.Config
 import de.joker.kloud.master.template.Template
 import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.shared.logger
@@ -138,6 +139,10 @@ class DockerManager : KoinComponent {
         val fullEnv = template.environment.toMutableMap().apply {
             putIfAbsent("KLOUD_TEMPLATE", template.name)
             putIfAbsent("EULA", "TRUE")
+            putIfAbsent("KLOUD_SERVER_NAME", serverName)
+            putIfAbsent("KLOUD_SERVER_PORT", free.toString())
+            putIfAbsent("KLOUD_REDIS_HOST", Config.redisHost)
+            putIfAbsent("KLOUD_REDIS_PORT", Config.redisPort.toString())
         }
 
         val doesServerExist = getContainerState(serverName) != null

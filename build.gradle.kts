@@ -7,6 +7,7 @@ allprojects {
     group = "de.joker"
     repositories {
         mavenCentral()
+        maven("https://jitpack.io")
         maven("https://nexus.fruxz.dev/repository/public/")
         maven {
             name = "papermc"

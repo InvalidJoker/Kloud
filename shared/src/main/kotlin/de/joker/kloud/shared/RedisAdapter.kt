@@ -11,6 +11,8 @@ import redis.clients.jedis.JedisPoolConfig
 import redis.clients.jedis.JedisPubSub
 
 abstract class RedisAdapter(
+    val host: String,
+    val port: Int,
     val channels: List<RedisHandler>
 ) {
     lateinit var jedisPool: JedisPool
@@ -21,9 +23,6 @@ abstract class RedisAdapter(
     @OptIn(InternalSerializationApi::class)
     fun connect() {
         logger.info("Connecting to Redis server...")
-
-        val host = "localhost" // Replace with your Redis host
-        val port = 6379 // Replace with your Redis port
 
         val jedisPoolConfig = JedisPoolConfig()
         jedisPoolConfig.maxTotal = 50
@@ -116,6 +115,25 @@ abstract class RedisAdapter(
     @OptIn(InternalSerializationApi::class)
     fun emitEvent(channel: RedisNames, event: IEvent) {
         emitEvent(channel.channel, event)
+    }
+
+    fun getString(key: String): String? {
+        return jedisPool.resource.use { jedis ->
+            val value = jedis.get(key)
+            logger.info("Retrieved string for key '$key': $value")
+            value
+        }
+    }
+
+    fun setString(key: String, value: String) {
+        try {
+            jedisPool.resource.use { jedis ->
+                jedis.set(key, value)
+                logger.info("Set string for key '$key' with value '$value'")
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to set string for key '$key'", e)
+        }
     }
 
     fun close() {
