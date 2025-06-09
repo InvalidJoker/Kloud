@@ -60,7 +60,10 @@ class ProxyPlugin @Inject constructor(
             if (serverData.type != ServerType.PROXIED_SERVER) return@forEach
 
             this.server.registerServer(serverData.serverInfo)
+            logger.info("Registered server: ${serverData.serverName} at port ${serverData.connectionPort}")
         }
+
+        logger.info("Kloud Proxy initialized with ${servers.size} servers registered.")
     }
 
 
@@ -71,11 +74,8 @@ class ProxyPlugin @Inject constructor(
             globalJson.decodeFromString<RedisServer>(it.value)
         }
 
-        val servers = redisServer.filter { redisServer ->
-            redisServer.lobby && server.allServers.any { it.serverInfo.name == redisServer.serverName }
-        }.map {
-            server.getServer(it.serverName).get()
-        }
+        val servers = server.allServers
+            .filter { redisServer.find { server -> server.serverName == it.serverInfo.name }?.lobby == true }
 
         if (servers.isEmpty()) {
             logger.warn("No lobby servers available for player ${event.player.username}.")
@@ -87,8 +87,8 @@ class ProxyPlugin @Inject constructor(
         val lobbyServer = servers.minByOrNull { it.playersConnected.size } ?: servers.firstOrNull()
 
         if (lobbyServer != null) {
+            logger.info("Player ${event.player.username}: ${lobbyServer.serverInfo.name}, port ${lobbyServer.serverInfo.address.port}")
             event.setInitialServer(lobbyServer)
-            logger.info("Player ${event.player.username} assigned to lobby server: ${lobbyServer.serverInfo.name}")
         } else {
             logger.warn("No lobby server found for player ${event.player.username}.")
         }

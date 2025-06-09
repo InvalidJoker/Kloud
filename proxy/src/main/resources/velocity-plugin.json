@@ -1,0 +1,9 @@
+{
+  "id": "${name}",
+  "name": "${name}",
+  "version": "${version}",
+  "authors": [
+    "InvalidJoker"
+  ],
+  "main": "de.joker.kloud.proxy.ProxyPlugin"
+}

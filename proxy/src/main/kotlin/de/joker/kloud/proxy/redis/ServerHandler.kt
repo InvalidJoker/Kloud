@@ -2,6 +2,7 @@ package de.joker.kloud.proxy.redis
 
 import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.server.ServerInfo
+import de.joker.kloud.proxy.getLocalIP
 import de.joker.kloud.shared.RedisHandler
 import de.joker.kloud.shared.common.RedisServer
 import de.joker.kloud.shared.common.ServerType
@@ -16,7 +17,11 @@ import java.net.InetSocketAddress
 val RedisServer.serverInfo: ServerInfo?
     get() = ServerInfo(
         this.serverName,
-        InetSocketAddress("localhost", this.connectionPort)
+        InetSocketAddress(
+            "host.docker.internal",
+            this.connectionPort
+        )
+
     )
 
 class ServerHandler: RedisHandler {

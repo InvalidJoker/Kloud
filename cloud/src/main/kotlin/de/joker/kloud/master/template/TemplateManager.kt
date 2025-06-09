@@ -3,6 +3,7 @@ package de.joker.kloud.master.template
 import de.joker.kloud.shared.common.ServerType
 import de.joker.kloud.shared.logger
 import dev.fruxz.ascend.json.globalJson
+import kotlinx.serialization.builtins.ListSerializer
 import org.koin.core.component.KoinComponent
 import java.io.File
 
@@ -47,16 +48,16 @@ class TemplateManager : KoinComponent{
         } else {
             val proxy = Template(
                 name = "proxy",
-                image = "itzg/minecraft-proxy",
+                image = "itzg/mc-proxy",
                 environment = mapOf(
-                    "TYPE" to "BUNGEECORD",
+                    "TYPE" to "VELOCITY",
                 ),
                 type = ServerType.PROXY,
                 lobby = false,
                 requiredPermissions = emptyList(),
                 dynamic = null
             )
-            val defaultTemplate = Template(
+            val lobby = Template(
                 name = "lobby",
                 image = "itzg/minecraft-server",
                 environment = mapOf(
@@ -65,10 +66,15 @@ class TemplateManager : KoinComponent{
                 type = ServerType.PROXIED_SERVER,
                 lobby = true,
                 requiredPermissions = emptyList(),
-                dynamic = null
+                dynamic = DynamicTemplate(
+                    minServers = 1,
+                    maxServers = 1
+                )
             )
-            addTemplate(defaultTemplate)
-            logger.warn("Templates file not found: ${file.absolutePath}. No templates loaded.")
+            addTemplate(proxy)
+            addTemplate(lobby)
+            file.writeText(globalJson.encodeToString(ListSerializer(Template.serializer()), listOf(proxy, lobby)))
+            logger.warn("Templates file not found: ${file.absolutePath}. Created default templates: 'proxy' and 'lobby'.")
         }
 
         templates.forEach { (name, template) ->

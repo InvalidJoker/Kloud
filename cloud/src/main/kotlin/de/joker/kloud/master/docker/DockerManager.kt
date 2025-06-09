@@ -9,20 +9,24 @@ import com.github.dockerjava.api.model.PortBinding
 import com.github.dockerjava.api.model.Volume
 import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientBuilder
+import com.github.dockerjava.okhttp.OkDockerHttpClient
 import de.joker.kloud.master.Config
 import de.joker.kloud.master.template.Template
 import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.shared.logger
 import de.joker.kloud.master.redis.RedisManager
 import de.joker.kloud.shared.RedisNames
+import de.joker.kloud.shared.common.ServerType
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.events.ServerUpdateStateEvent
+import de.joker.kutils.core.extensions.ifTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.io.File
+import kotlin.collections.mapNotNull
 
 class DockerManager : KoinComponent {
     lateinit var dockerClient: DockerClient
@@ -32,8 +36,15 @@ class DockerManager : KoinComponent {
     fun loadDockerClient() {
         val dockerConfig = DefaultDockerClientConfig.createDefaultConfigBuilder().build()
 
+        val okHttpClient = OkDockerHttpClient.Builder()
+            .dockerHost(dockerConfig.dockerHost)
+            .sslConfig(dockerConfig.sslConfig)
+            .build()
+
         dockerClient = dockerConfig.run {
-            DockerClientBuilder.getInstance(this).build()
+            DockerClientBuilder.getInstance(this)
+                .withDockerHttpClient(okHttpClient)
+                .build()
         }
 
         runCatching {
@@ -43,6 +54,21 @@ class DockerManager : KoinComponent {
         logger.info("Docker client initialized successfully.")
 
         val templateManager: TemplateManager by inject()
+
+        val kCludNetwork = dockerClient.listNetworksCmd()
+            .withNameFilter("kcloud_network")
+            .exec()
+            .firstOrNull()
+
+        if (kCludNetwork == null) {
+            dockerClient.createNetworkCmd()
+                .withName("kcloud_network")
+                .withDriver("bridge")
+                .exec()
+            logger.info("Created kcloud_network for containers.")
+        } else {
+            logger.info("kcloud_network already exists.")
+        }
 
         templateManager.listTemplates().forEach {
             val success = DockerUtils.pullImage(dockerClient, it.image)
@@ -121,6 +147,16 @@ class DockerManager : KoinComponent {
             null
         }
     }
+    fun getContainers(): List<InspectContainerResponse> {
+        return dockerClient.listContainersCmd()
+            .withShowAll(true)
+            .exec()
+            .mapNotNull { container ->
+                runCatching {
+                    dockerClient.inspectContainerCmd(container.id).exec()
+                }.getOrNull()
+            }
+    }
 
     fun createContainer(
         template: Template,
@@ -136,23 +172,33 @@ class DockerManager : KoinComponent {
             PortBinding.parse("$hostPort:$containerPort")
         }
 
+        val redisHost = if (Config.redisHost == "localhost") {
+            "host.docker.internal"
+        } else {
+            Config.redisHost
+        }
+
         val fullEnv = template.environment.toMutableMap().apply {
             putIfAbsent("KLOUD_TEMPLATE", template.name)
             putIfAbsent("EULA", "TRUE")
             putIfAbsent("KLOUD_SERVER_NAME", serverName)
             putIfAbsent("KLOUD_SERVER_PORT", free.toString())
-            putIfAbsent("KLOUD_REDIS_HOST", Config.redisHost)
+            putIfAbsent("KLOUD_REDIS_HOST", redisHost)
             putIfAbsent("KLOUD_REDIS_PORT", Config.redisPort.toString())
         }
 
-        val doesServerExist = getContainerState(serverName) != null
+        if (template.type == ServerType.PROXIED_SERVER) {
+            fullEnv["ONLINE_MODE"] = "FALSE" // Disable online mode for proxied servers
+        }
 
-        if (doesServerExist) {
-            logger.warn("Container with name $serverName already exists. Please choose a different name.")
-            return
+        val dataLocation = if (template.type == ServerType.PROXY) {
+            "/server"
+        } else {
+            "/data"
         }
 
         scope.launch {
+
             val isPersistent = template.dynamic == null
             val volumeName = template.name
             val volume: Volume?
@@ -172,7 +218,7 @@ class DockerManager : KoinComponent {
                     logger.info("Volume already exists: $volumeName")
                 }
 
-                volume = Volume("/data")
+                volume = Volume(dataLocation)
                 bind = Bind(file, volume)
             } else {
                 volume = null
@@ -181,6 +227,7 @@ class DockerManager : KoinComponent {
 
             val containerCmd = dockerClient.createContainerCmd(template.image)
                 .withName(serverName)
+                .withLabels(mapOf("kloud-template" to template.name))
                 .withEnv(fullEnv.map { "${it.key}=${it.value}" })
 
             if (volume != null) {
@@ -189,11 +236,19 @@ class DockerManager : KoinComponent {
                         HostConfig.newHostConfig()
                             .withPortBindings(*ports.toTypedArray())
                             .withBinds(bind)
+                            .withAutoRemove(true)
+                            .ifTrue({ template.type != ServerType.STANDALONE_SERVER }) { e ->
+                                e.withNetworkMode("kcloud_network")
+                            }
                     )
             } else {
                 containerCmd.withHostConfig(
                     HostConfig.newHostConfig()
                         .withPortBindings(*ports.toTypedArray())
+                        .withAutoRemove(true)
+                        .ifTrue({ template.type != ServerType.STANDALONE_SERVER }) { e ->
+                            e.withNetworkMode("kcloud_network")
+                        }
                 )
             }
 
@@ -206,7 +261,7 @@ class DockerManager : KoinComponent {
                     copyFilesToContainer(
                         container.id,
                         path,
-                        "/data"
+                        dataLocation
                     )
                 }
             }

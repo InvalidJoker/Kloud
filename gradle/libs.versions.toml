@@ -38,6 +38,7 @@ koinKtor = { module = "io.insert-koin:koin-ktor", version.ref = "koin" }
 koinSlf4j = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" }
 
 dockerJava = { module = "com.github.docker-java:docker-java", version.ref = "dockerJava" }
+dockerJavaOkHttp = { module = "com.github.docker-java:docker-java-transport-okhttp", version.ref = "dockerJava" }
 logbackClassic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 velocity = { module = "com.velocitypowered:velocity-api", version.ref = "velocity" }
@@ -54,6 +55,7 @@ backend = [
     "ktorServerContentNegotiation",
     "ktorSerializationKotlinxJson",
     "dockerJava",
+    "dockerJavaOkHttp",
 ]
 utilities = [
     "ascend",

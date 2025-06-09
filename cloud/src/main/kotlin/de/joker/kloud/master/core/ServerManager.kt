@@ -19,21 +19,44 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
 class ServerManager : KoinComponent {
+    val serverQueue = mutableMapOf<Template, Int>()
     val serverIds = mutableMapOf<String, Int>()
     val scope = CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
     lateinit var shutdownJob: Job
 
     fun startup() {
+        cleanupCurrent()
         cleanup()
-        val templateManager: TemplateManager by inject()
-
-        val templates = templateManager.listTemplates()
-
         shutdownChecker()
 
-        templates.forEach { template ->
-            if (template.lobby) {
-                createServer(template)
+        val templateManager: TemplateManager by inject()
+
+        val static = templateManager.listTemplates().filter { it.dynamic == null }
+
+        static.forEach { template ->
+            createServer(template)
+        }
+    }
+
+    fun cleanupCurrent() {
+        val docker: DockerManager by inject()
+        val containers = docker.getContainers()
+        val templateManager: TemplateManager by inject()
+
+        containers.forEach { container ->
+            if (container.node?.labels?.containsKey("kloud-template") == true) {
+                val templateName = container.node.labels["kloud-template"] ?: return@forEach
+                val template = templateManager.getTemplate(templateName) ?: return@forEach
+
+                if (template.dynamic == null) {
+                    logger.info("Stopping and deleting static server: ${container.name}")
+                    docker.stopContainerBlocking(container.id) {
+                        docker.deleteContainerBlocking(container.id, false)
+                    }
+                } else {
+                    logger.info("Deleting dynamic server: ${container.name}")
+                    docker.deleteContainerBlocking(container.id, true)
+                }
             }
         }
     }
@@ -41,12 +64,13 @@ class ServerManager : KoinComponent {
     fun createServer(
         template: Template
     ) {
+        serverQueue[template] = serverQueue.getOrDefault(template, 0) + 1
+        println("Creating server for template: ${template.name}")
         val redis: RedisManager by inject()
         val docker: DockerManager by inject()
 
         val containerName = if (template.dynamic != null) {
             val ids = serverIds[template.name] ?: 1
-
             "${template.name}-${ids}"
         } else {
             template.name
@@ -60,6 +84,7 @@ class ServerManager : KoinComponent {
                 val currentId = serverIds[template.name] ?: 0
                 serverIds[template.name] = currentId + 1
             }
+            serverQueue[template] = maxOf(0, serverQueue.getOrDefault(template, 0) - 1)
 
             val redisServer = RedisServer(
                 containerId = res.id,
@@ -115,16 +140,27 @@ class ServerManager : KoinComponent {
 
                 redis.emitEvent(RedisNames.SERVERS, stoppingEvent)
 
-                docker.stopContainerBlocking(server.containerId) {
-                    docker.deleteContainerBlocking(server.containerId, false)
+                try {
+                    docker.stopContainerBlocking(server.containerId) {
+                        docker.deleteContainerBlocking(server.containerId, false)
 
+                        val stoppedEvent = ServerUpdateStateEvent(
+                            server.containerId,
+                            ServerState.GONE,
+                        )
+
+                        redis.emitEvent(RedisNames.SERVERS, stoppedEvent)
+
+                        redis.removeFromHash("servers", server.containerId)
+                    }
+                } catch (e: Exception) {
+                    logger.error("Failed to stop and delete static server ${server.serverName} (${server.containerId}): ${e.message}")
+                    // Emit an event that the server is gone, even if it failed to stop
                     val stoppedEvent = ServerUpdateStateEvent(
                         server.containerId,
                         ServerState.GONE,
                     )
-
                     redis.emitEvent(RedisNames.SERVERS, stoppedEvent)
-
                     redis.removeFromHash("servers", server.containerId)
                 }
             } else {// dynamic server, just delete it
@@ -161,21 +197,32 @@ class ServerManager : KoinComponent {
                     if (state == null || state.running == false) {
                         logger.warn("Server ${server.serverName} (${server.templateName}) is not running, removing from Redis.")
                         redis.removeFromHash("servers", server.containerId)
-                    }
 
-                    val template = templateManager.getTemplate(server.templateName)
-                        ?: throw IllegalStateException("Template ${server.templateName} not found for server ${server.serverName}")
 
-                    if (template.dynamic != null) {
-                        docker.deleteContainerInBackground(server.containerId, true)
+                        val template = templateManager.getTemplate(server.templateName)
+                            ?: throw IllegalStateException("Template ${server.templateName} not found for server ${server.serverName}")
+
+                        if (template.dynamic != null) {
+                            docker.deleteContainerInBackground(server.containerId, true)
+                        }
+
+                        val stoppedEvent = ServerUpdateStateEvent(
+                            server.containerId,
+                            ServerState.GONE,
+                        )
+
+                        redis.emitEvent(RedisNames.SERVERS, stoppedEvent)
                     }
                 }
 
                 val templates = templateManager.listTemplates()
                 templates.filter { it.dynamic != null }.forEach { template ->
                     val runningServers = servers.count { it.templateName == template.name && docker.getContainerState(it.containerId)?.running == true }
+                    val queuedServers = serverQueue[template] ?: 0
+
                     val minServers = template.dynamic?.minServers ?: 0
-                    if (runningServers < minServers) {
+
+                    if (runningServers + queuedServers < minServers) {
                         repeat(minServers - runningServers) {
                             createServer(template)
                         }

@@ -38,8 +38,6 @@ abstract class RedisAdapter(
                 try {
                     val event = eventJson.decodeFromString(IEvent::class.serializer(), message)
 
-                    logger.info("Received event on channel $channel: $event")
-
                     val handler = channels.find { it.channel == channel }
 
                     if (handler != null) {
@@ -66,7 +64,6 @@ abstract class RedisAdapter(
     fun getHash(key: String): Map<String, String> {
         return jedisPool.resource.use { jedis ->
             val hash = jedis.hgetAll(key)
-            logger.info("Retrieved hash '$key': $hash")
             hash
         }
     }
@@ -75,7 +72,6 @@ abstract class RedisAdapter(
         try {
             jedisPool.resource.use { jedis ->
                 jedis.hset(key, field, value)
-                logger.info("Added field '$field' with value '$value' to hash '$key'")
             }
         } catch (e: Exception) {
             logger.error("Failed to add field '$field' with value '$value' to hash '$key'", e)
@@ -85,7 +81,6 @@ abstract class RedisAdapter(
     fun getFromHash(key: String, field: String): String? {
         return jedisPool.resource.use { jedis ->
             val value = jedis.hget(key, field)
-            logger.info("Retrieved field '$field' from hash '$key': $value")
             value
         }
     }
@@ -94,7 +89,6 @@ abstract class RedisAdapter(
         try {
             jedisPool.resource.use { jedis ->
                 jedis.hdel(key, field)
-                logger.info("Removed field '$field' from hash '$key'")
             }
         } catch (e: Exception) {
             logger.error("Failed to remove field '$field' from hash '$key'", e)
@@ -120,7 +114,6 @@ abstract class RedisAdapter(
     fun getString(key: String): String? {
         return jedisPool.resource.use { jedis ->
             val value = jedis.get(key)
-            logger.info("Retrieved string for key '$key': $value")
             value
         }
     }
@@ -129,7 +122,6 @@ abstract class RedisAdapter(
         try {
             jedisPool.resource.use { jedis ->
                 jedis.set(key, value)
-                logger.info("Set string for key '$key' with value '$value'")
             }
         } catch (e: Exception) {
             logger.error("Failed to set string for key '$key'", e)

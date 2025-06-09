@@ -65,11 +65,26 @@ object KloudInstance {
 
         while (true) {
             val input = readLine()
-            if (input == null || input.lowercase() == "exit") {
-                println("Exiting KloudInstance...")
-                break
-            } else {
-                println("Received input: $input")
+            if (input == null) continue
+
+            when (input.split(" ").firstOrNull()?.lowercase()) {
+                "exit", "quit" -> {
+                    println("Exiting Kloud instance...")
+                    break
+                }
+                "start" -> {
+                    val templateName = input.split(" ").getOrNull(1)
+                    if (templateName != null) {
+                        val templateToStart = template.getTemplate(templateName)
+                        if (templateToStart != null) {
+                            serverManager.createServer(templateToStart)
+                        } else {
+                            println("Template '$templateName' not found.")
+                        }
+                    } else {
+                        println("Please provide a template name to start.")
+                    }
+                }
             }
         }
     }

@@ -14,7 +14,7 @@ data class Template(
     val dynamic: DynamicTemplate? = null, // if set server is dynamic and can scale
 ) {
     fun getFilePaths(): List<String> {
-        val base = "/templates"
+        val base = "./templates"
         val mainPath = "$base/$name"
         return listOf(mainPath) + (dynamic?.extraDirectories?.map { dir ->
             "$mainPath/$dir"

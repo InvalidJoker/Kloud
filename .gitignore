@@ -46,5 +46,5 @@ bin/
 
 .idea/*
 run/*
-templates/*
+cloud/templates/*
 templates.json

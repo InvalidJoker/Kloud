@@ -13,5 +13,5 @@ dependencies {
 }
 
 application {
-    mainClass.set("de.joker.kloud.ApplicationKt")
+    mainClass.set("de.joker.kloud.master.ApplicationKt")
 }
