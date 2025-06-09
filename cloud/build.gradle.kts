@@ -9,6 +9,7 @@ dependencies {
     implementation(libs.bundles.utilities)
     implementation(libs.bundles.redis)
     implementation(libs.bundles.koin)
+    implementation(libs.yaml)
     implementation(project(":shared"))
 }
 

@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import java.io.File
 
 class ServerManager : KoinComponent {
     val serverQueue = mutableMapOf<Template, Int>()
@@ -48,14 +49,25 @@ class ServerManager : KoinComponent {
                 val templateName = container.node.labels["kloud-template"] ?: return@forEach
                 val template = templateManager.getTemplate(templateName) ?: return@forEach
 
-                if (template.dynamic == null) {
-                    logger.info("Stopping and deleting static server: ${container.name}")
-                    docker.stopContainerBlocking(container.id) {
-                        docker.deleteContainerBlocking(container.id, false)
+                try {
+                    if (template.dynamic == null) {
+                        logger.info("Stopping and deleting static server: ${container.name}")
+                        docker.stopContainerBlocking(container.id) {
+                            docker.deleteContainerBlocking(container.id, false)
+                        }
+                    } else {
+                        logger.info("Deleting dynamic server: ${container.name}")
+                        docker.deleteContainerBlocking(container.id, true)
                     }
-                } else {
-                    logger.info("Deleting dynamic server: ${container.name}")
-                    docker.deleteContainerBlocking(container.id, true)
+                } catch (e: Exception) {
+                    logger.error("Failed to cleanup server ${container.name} (${container.id}): ${e.message}")
+                    // Emit an event that the server is gone, even if it failed to stop
+                    val redis: RedisManager by inject()
+                    val stoppedEvent = ServerUpdateStateEvent(
+                        container.id,
+                        ServerState.GONE,
+                    )
+                    redis.emitEvent(RedisNames.SERVERS, stoppedEvent)
                 }
             }
         }
@@ -127,6 +139,13 @@ class ServerManager : KoinComponent {
             logger.info("Shutdown job cancelled.")
         }
 
+        val runningFiles = File("./running")
+
+        if (runningFiles.exists()) {
+            runningFiles.deleteRecursively()
+            logger.info("Deleted running files directory.")
+        }
+
         servers.forEach { server ->
             val serverTemplate = template.getTemplate(server.templateName) ?: throw IllegalStateException("Template ${server.templateName} not found for server ${server.serverName}")
 
@@ -164,7 +183,11 @@ class ServerManager : KoinComponent {
                     redis.removeFromHash("servers", server.containerId)
                 }
             } else {// dynamic server, just delete it
-                docker.deleteContainerBlocking(server.containerId, true)
+                try {
+                    docker.deleteContainerBlocking(server.containerId, true)
+                } catch (e: Exception) {
+                    logger.error("Failed to delete dynamic server ${server.serverName} (${server.containerId}): ${e.message}")
+                }
                 val stoppedEvent = ServerUpdateStateEvent(
                     server.containerId,
                     ServerState.GONE,

@@ -11,6 +11,7 @@ import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientBuilder
 import com.github.dockerjava.okhttp.OkDockerHttpClient
 import de.joker.kloud.master.Config
+import de.joker.kloud.master.core.SecretManager
 import de.joker.kloud.master.template.Template
 import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.shared.logger
@@ -25,6 +26,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import org.yaml.snakeyaml.DumperOptions
+import org.yaml.snakeyaml.Yaml
 import java.io.File
 import kotlin.collections.mapNotNull
 
@@ -79,20 +82,6 @@ class DockerManager : KoinComponent {
             }
         }
 
-    }
-
-    fun copyFilesToContainer(
-        containerId: String,
-        sourcePath: String,
-        targetPath: String
-    ) {
-        scope.launch {
-            dockerClient.copyArchiveToContainerCmd(containerId)
-                .withHostResource(sourcePath)
-                .withRemotePath(targetPath)
-                .exec()
-            logger.info("Files copied to container $containerId from $sourcePath to $targetPath")
-        }
     }
 
     fun startContainerInBackground(containerId: String, onStarted: (() -> Unit)? = null) {
@@ -158,6 +147,51 @@ class DockerManager : KoinComponent {
             }
     }
 
+    fun deleteServerDirectory(serverName: String) {
+        val serverDir = File("./running/$serverName")
+        if (serverDir.exists()) {
+            serverDir.deleteRecursively()
+            logger.info("Deleted server directory for $serverName")
+        }
+    }
+
+    fun movePlaceholders(path: File) {
+        val paperGlobalFile = File(path, "config/paper-global.yml")
+
+        val yamlParser = Yaml(
+            DumperOptions().apply {
+                defaultFlowStyle = DumperOptions.FlowStyle.BLOCK
+                defaultScalarStyle = DumperOptions.ScalarStyle.PLAIN
+            }
+        )
+
+        val current = mutableMapOf<String, Any>()
+
+        if (paperGlobalFile.exists()) {
+            val paperGlobal = yamlParser.load<Map<String, Any>>(paperGlobalFile.inputStream())
+
+            if (paperGlobal != null) {
+                current.putAll(paperGlobal)
+            }
+        }
+
+        val secretManager: SecretManager by inject()
+
+        current["proxies"] = mapOf(
+            "bungee-cord" to mapOf(
+                "online-mode" to true
+            ),
+            "proxy-protocol" to false,
+            "velocity" to mapOf(
+                "enabled" to true,
+                "online-mode" to true,
+                "secret" to secretManager.getSecret()
+            )
+        )
+
+        paperGlobalFile.writeText(yamlParser.dump(current))
+    }
+
     fun createContainer(
         template: Template,
         serverName: String,
@@ -165,6 +199,7 @@ class DockerManager : KoinComponent {
     ) {
         val redis: RedisManager by inject()
         val free = DockerUtils.findClosestPortTo25565() ?: throw IllegalStateException("No free port found for container ${template.name}")
+        val secretManager: SecretManager by inject()
 
         val ports = mapOf( // TODO: make this dynamic
             free to 25565
@@ -197,32 +232,87 @@ class DockerManager : KoinComponent {
             "/data"
         }
 
-        scope.launch {
 
+        scope.launch {
             val isPersistent = template.dynamic == null
             val volumeName = template.name
-            val volume: Volume?
-            val bind: Bind?
+            var bind: Bind
 
-            if (isPersistent) {
+            val dir = if (isPersistent) {
                 val persistentVolumePath = "./templates/$volumeName"
-                val file = File(persistentVolumePath).absolutePath
+                val file = File(persistentVolumePath)
 
-                // Create volume if it doesn't exist
-                if (!dockerClient.listVolumesCmd().exec().volumes.any { it.name == volumeName }) {
-                    dockerClient.createVolumeCmd()
-                        .withName(volumeName)
-                        .exec()
-                    logger.info("Created volume: $volumeName")
-                } else {
-                    logger.info("Volume already exists: $volumeName")
+                file
+            } else {
+                val runningDirectory = File("./running/$serverName")
+                if (runningDirectory.exists()) {
+                    runningDirectory.deleteRecursively()
                 }
 
-                volume = Volume(dataLocation)
-                bind = Bind(file, volume)
+                runningDirectory.mkdirs()
+
+                // copy template files to running directory
+                val templateDir = File("./templates/${template.name}")
+
+                if (templateDir.exists()) {
+                    templateDir.copyRecursively(runningDirectory, true)
+                } else {
+                    logger.warn("Template directory ${templateDir.absolutePath} does not exist. Using running directory only.")
+                }
+
+                runningDirectory
+            }
+
+            if (template.type == ServerType.PROXIED_SERVER) {
+                movePlaceholders(dir)
+            }
+
+            // Create volume if it doesn't exist
+            if (!dockerClient.listVolumesCmd().exec().volumes.any { it.name == volumeName }) {
+                dockerClient.createVolumeCmd()
+                    .withName(volumeName)
+                    .exec()
+                logger.info("Created volume: $volumeName")
             } else {
-                volume = null
-                bind = null
+                logger.info("Volume already exists: $volumeName")
+            }
+
+            val volume = Volume(dataLocation)
+            bind = Bind(dir.absolutePath, volume)
+
+
+            val secretVolumeName = template.name
+            var secretBind: Bind? = null
+
+
+
+            if (template.type == ServerType.PROXY) {
+                // if there already is a forwarding.secret file, in current mount delete it
+                val secretFileExists = File(dir, "forwarding.secret")
+
+                if (secretFileExists.exists()) {
+                    secretFileExists.delete()
+                }
+
+                val secretFile = secretManager.getFullSecretPath().absolutePath
+
+                // Create volume if it doesn't exist
+                if (!dockerClient.listVolumesCmd().exec().volumes.any { it.name == secretVolumeName }) {
+                    dockerClient.createVolumeCmd()
+                        .withName(secretVolumeName)
+                        .exec()
+                    logger.info("Created secret volume: $secretVolumeName")
+                } else {
+                    logger.info("Secret volume already exists: $secretVolumeName")
+                }
+
+                val secretVolume = Volume("$dataLocation/forwarding.secret")
+                secretBind = Bind(secretFile, secretVolume)
+            }
+
+            val binds = mutableListOf<Bind>().apply {
+                add(bind)
+                if (secretBind != null) add(secretBind)
             }
 
             val containerCmd = dockerClient.createContainerCmd(template.image)
@@ -230,41 +320,17 @@ class DockerManager : KoinComponent {
                 .withLabels(mapOf("kloud-template" to template.name))
                 .withEnv(fullEnv.map { "${it.key}=${it.value}" })
 
-            if (volume != null) {
-                containerCmd.withVolumes(volume)
-                    .withHostConfig(
-                        HostConfig.newHostConfig()
-                            .withPortBindings(*ports.toTypedArray())
-                            .withBinds(bind)
-                            .withAutoRemove(true)
-                            .ifTrue({ template.type != ServerType.STANDALONE_SERVER }) { e ->
-                                e.withNetworkMode("kcloud_network")
-                            }
-                    )
-            } else {
-                containerCmd.withHostConfig(
-                    HostConfig.newHostConfig()
-                        .withPortBindings(*ports.toTypedArray())
-                        .withAutoRemove(true)
-                        .ifTrue({ template.type != ServerType.STANDALONE_SERVER }) { e ->
-                            e.withNetworkMode("kcloud_network")
-                        }
-                )
-            }
+            containerCmd.withHostConfig(
+                HostConfig.newHostConfig()
+                    .withPortBindings(*ports.toTypedArray())
+                    //.withAutoRemove(true)
+                    .withBinds(*binds.toTypedArray())
+                    .ifTrue({ template.type != ServerType.STANDALONE_SERVER }) { e ->
+                        e.withNetworkMode("kcloud_network")
+                    }
+            )
 
             val container = containerCmd.exec()
-
-            if (!isPersistent) {
-                val filePaths = template.getFilePaths()
-
-                filePaths.forEach { path ->
-                    copyFilesToContainer(
-                        container.id,
-                        path,
-                        dataLocation
-                    )
-                }
-            }
 
             val event = ServerUpdateStateEvent(
                 serverId = container.id,

@@ -2,7 +2,6 @@ package de.joker.kloud.proxy.redis
 
 import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.server.ServerInfo
-import de.joker.kloud.proxy.getLocalIP
 import de.joker.kloud.shared.RedisHandler
 import de.joker.kloud.shared.common.RedisServer
 import de.joker.kloud.shared.common.ServerType

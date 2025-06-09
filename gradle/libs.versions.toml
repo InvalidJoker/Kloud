@@ -17,6 +17,7 @@ redis = "6.0.0"
 velocity = "3.4.0-SNAPSHOT"
 kotlinDotenv = "6.5.1"
 kUtils = "beta-0.0.2"
+yaml = "2.2"
 
 [libraries]
 ascend = { module = "dev.fruxz:ascend", version.ref = "ascend" }
@@ -45,6 +46,7 @@ velocity = { module = "com.velocitypowered:velocity-api", version.ref = "velocit
 
 kUtilsCore = { module = "com.github.InvalidJoker.KUtils:core", version.ref = "kUtils" }
 
+yaml = { module = "org.yaml:snakeyaml", version.ref = "yaml" }
 
 # Libraries can be bundled together for easier import
 [bundles]

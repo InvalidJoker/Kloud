@@ -1,5 +1,6 @@
 package de.joker.kloud.master
 
+import de.joker.kloud.master.core.SecretManager
 import de.joker.kloud.master.core.ServerManager
 import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.master.docker.DockerManager
@@ -29,6 +30,10 @@ object KloudInstance {
         single { ServerManager() }
     }
 
+    val secretModule = module {
+        single { SecretManager() }
+    }
+
     @OptIn(InternalSerializationApi::class)
     fun start() {
         startKoin {
@@ -38,6 +43,7 @@ object KloudInstance {
                 redisModule,
                 templateModule,
                 serverModule,
+                secretModule,
                 module {
                     single { globalJson }
                 }
@@ -48,6 +54,9 @@ object KloudInstance {
         val docker: DockerManager by inject(DockerManager::class.java)
         val template: TemplateManager by inject(TemplateManager::class.java)
         val serverManager: ServerManager by inject(ServerManager::class.java)
+        val secretManager: SecretManager by inject(SecretManager::class.java)
+
+        secretManager.loadSecrets()
 
         template.loadTemplatesFromFile()
 
