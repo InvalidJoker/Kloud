@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package templates.v1;
+
+import "generic/v1/core.proto";
+
+enum ServerType {
+  PROXY = 0;
+  PROXIED_SERVER = 1;
+  STANDALONE_SERVER = 2;
+}
+
+message DynamicTemplate {
+  int32 minServers = 1;
+  int32 maxServers = 2;
+  repeated string extraDirectories = 3;
+}
+
+message Template {
+  string name = 1;
+  string image = 2;
+  map<string, string> environment = 3;
+  bool lobby = 4;
+  ServerType type = 5;
+  repeated string requiredPermissions = 6;
+  optional DynamicTemplate dynamic = 7;
+}
+
+message TemplateList {
+  repeated Template templates = 1;
+}
+
+
+service TemplateService {
+  rpc ListTemplates(generic.v1.GenericRequest) returns (TemplateList);
+}

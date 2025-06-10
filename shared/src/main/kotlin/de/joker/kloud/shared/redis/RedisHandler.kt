@@ -1,4 +1,4 @@
-package de.joker.kloud.shared
+package de.joker.kloud.shared.redis
 
 import de.joker.kloud.shared.events.IEvent
 

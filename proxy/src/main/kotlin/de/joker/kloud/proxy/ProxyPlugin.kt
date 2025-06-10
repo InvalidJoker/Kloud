@@ -10,8 +10,8 @@ import de.joker.kloud.proxy.listener.ConnectionListener
 import de.joker.kloud.proxy.listener.KickListener
 import de.joker.kloud.proxy.redis.RedisSubscriber
 import de.joker.kloud.proxy.redis.serverInfo
-import de.joker.kloud.shared.common.ServerType
-import de.joker.kloud.shared.logger
+import de.joker.kloud.shared.server.ServerType
+import de.joker.kloud.shared.utils.logger
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import org.koin.java.KoinJavaComponent.inject

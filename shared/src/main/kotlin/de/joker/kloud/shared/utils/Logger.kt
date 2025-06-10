@@ -1,4 +1,4 @@
-package de.joker.kloud.shared
+package de.joker.kloud.shared.utils
 
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory

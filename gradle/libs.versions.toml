@@ -18,6 +18,7 @@ velocity = "3.4.0-SNAPSHOT"
 kotlinDotenv = "6.5.1"
 kUtils = "beta-0.0.2"
 yaml = "2.2"
+protospec = "1.4.3.1.20250610182256.402850c74b60"
 
 [libraries]
 ascend = { module = "dev.fruxz:ascend", version.ref = "ascend" }
@@ -47,6 +48,7 @@ velocity = { module = "com.velocitypowered:velocity-api", version.ref = "velocit
 kUtilsCore = { module = "com.github.InvalidJoker.KUtils:core", version.ref = "kUtils" }
 
 yaml = { module = "org.yaml:snakeyaml", version.ref = "yaml" }
+protospec = { module = "build.buf.gen:invalidjoker_kloud_grpc_kotlin", version.ref = "protospec" }
 
 # Libraries can be bundled together for easier import
 [bundles]
@@ -58,6 +60,7 @@ backend = [
     "ktorSerializationKotlinxJson",
     "dockerJava",
     "dockerJavaOkHttp",
+    "protospec"
 ]
 utilities = [
     "ascend",

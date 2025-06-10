@@ -1,4 +1,4 @@
-package de.joker.kloud.shared.common
+package de.joker.kloud.shared.server
 
 import dev.fruxz.ascend.json.serializer.UUIDSerializer
 import java.util.UUID

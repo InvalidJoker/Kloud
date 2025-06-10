@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package server.v1;
+
+import "generic/v1/core.proto";
+
+message PrivateGameData {
+  string host_uuid = 1; // UUID of the host
+}
+
+message CreateServerRequest {
+  string template_id = 1;
+  optional PrivateGameData private_game_data = 2;
+  map<string, string> extra_data = 3;
+}
+
+message ServerCreateResponse {
+  string id = 1; // Unique identifier for the server
+}
+
+message UpdateServerRequest {
+  string id = 1;
+  optional PrivateGameData private_game_data = 3;
+  map<string, string> extra_data = 4;
+}
+
+service ServerService {
+  rpc CreateServer(CreateServerRequest) returns (ServerCreateResponse);
+  rpc UpdateServer(UpdateServerRequest) returns (generic.v1.GenericResponse);
+
+  rpc StopServer(generic.v1.GenericIdentification) returns (generic.v1.GenericResponse);
+  rpc StartServer(generic.v1.GenericIdentification) returns (generic.v1.GenericResponse);
+  rpc RestartServer(generic.v1.GenericIdentification) returns (generic.v1.GenericResponse);
+  rpc DeleteServer(generic.v1.GenericIdentification) returns (generic.v1.GenericResponse);
+}

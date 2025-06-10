@@ -1,12 +1,13 @@
-package de.joker.kloud.shared.common
+package de.joker.kloud.shared.server
 
+import de.joker.kloud.shared.templates.Template
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class RedisServer(
-    val containerId: String,
-    val templateName: String,
+data class SerializableServer(
+    val id: String,
     val serverName: String,
+    val template: Template,
     var serverData: ServerData,
     val connectionPort: Int,
     val type: ServerType,

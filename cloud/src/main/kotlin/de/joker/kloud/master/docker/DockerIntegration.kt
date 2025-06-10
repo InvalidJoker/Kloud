@@ -11,13 +11,13 @@ import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientBuilder
 import com.github.dockerjava.okhttp.OkDockerHttpClient
 import de.joker.kloud.master.Config
-import de.joker.kloud.master.core.SecretManager
-import de.joker.kloud.master.template.Template
+import de.joker.kloud.master.other.SecretManager
+import de.joker.kloud.shared.templates.Template
 import de.joker.kloud.master.template.TemplateManager
-import de.joker.kloud.shared.logger
-import de.joker.kloud.master.redis.RedisManager
-import de.joker.kloud.shared.RedisNames
-import de.joker.kloud.shared.common.ServerType
+import de.joker.kloud.shared.utils.logger
+import de.joker.kloud.master.redis.RedisConnector
+import de.joker.kloud.shared.redis.RedisNames
+import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.events.ServerUpdateStateEvent
 import de.joker.kutils.core.extensions.ifTrue
@@ -31,7 +31,7 @@ import org.yaml.snakeyaml.Yaml
 import java.io.File
 import kotlin.collections.mapNotNull
 
-class DockerManager : KoinComponent {
+class DockerIntegration : KoinComponent {
     lateinit var dockerClient: DockerClient
 
     val scope = CoroutineScope(Dispatchers.IO)
@@ -58,12 +58,12 @@ class DockerManager : KoinComponent {
 
         val templateManager: TemplateManager by inject()
 
-        val kCludNetwork = dockerClient.listNetworksCmd()
+        val kCloudNetwork = dockerClient.listNetworksCmd()
             .withNameFilter("kcloud_network")
             .exec()
             .firstOrNull()
 
-        if (kCludNetwork == null) {
+        if (kCloudNetwork == null) {
             dockerClient.createNetworkCmd()
                 .withName("kcloud_network")
                 .withDriver("bridge")
@@ -197,7 +197,7 @@ class DockerManager : KoinComponent {
         serverName: String,
         onFinished: ((container: CreateContainerResponse, port: Int) -> Unit)? = null
     ) {
-        val redis: RedisManager by inject()
+        val redis: RedisConnector by inject()
         val free = DockerUtils.findClosestPortTo25565() ?: throw IllegalStateException("No free port found for container ${template.name}")
         val secretManager: SecretManager by inject()
 

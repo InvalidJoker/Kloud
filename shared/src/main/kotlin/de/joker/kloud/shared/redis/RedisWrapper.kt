@@ -1,7 +1,8 @@
-package de.joker.kloud.shared
+package de.joker.kloud.shared.redis
 
-import de.joker.kloud.shared.common.RedisServer
+import de.joker.kloud.shared.server.SerializableServer
 import de.joker.kloud.shared.events.IEvent
+import de.joker.kloud.shared.utils.logger
 import dev.fruxz.ascend.json.globalJson
 
 abstract class RedisWrapper(
@@ -11,10 +12,10 @@ abstract class RedisWrapper(
         redisAdapter.connect()
     }
 
-    fun getAllServers(): List<RedisServer> {
+    fun getAllServers(): List<SerializableServer> {
         return try {
             redisAdapter.getHash("servers").values.map {
-                globalJson.decodeFromString<RedisServer>(it)
+                globalJson.decodeFromString<SerializableServer>(it)
             }
         } catch (e: Exception) {
             logger.error("Failed to get all servers", e)
@@ -22,10 +23,10 @@ abstract class RedisWrapper(
         }
     }
 
-    fun getServer(containerId: String): RedisServer? {
+    fun getServer(containerId: String): SerializableServer? {
         return try {
             redisAdapter.getFromHash("servers", containerId)?.let {
-                globalJson.decodeFromString<RedisServer>(it)
+                globalJson.decodeFromString<SerializableServer>(it)
             }
         } catch (e: Exception) {
             logger.error("Failed to get server with ID: $containerId", e)
@@ -33,10 +34,10 @@ abstract class RedisWrapper(
         }
     }
 
-    fun saveServer(server: RedisServer): Boolean {
+    fun saveServer(server: SerializableServer): Boolean {
         return try {
             val json = globalJson.encodeToString(server)
-            redisAdapter.addToHash("servers", server.containerId, json)
+            redisAdapter.addToHash("servers", server.id, json)
             true
         } catch (e: Exception) {
             logger.error("Failed to save server: ${server.serverName}", e)
@@ -54,7 +55,7 @@ abstract class RedisWrapper(
         }
     }
 
-    fun getLobbyServers(): List<RedisServer> {
+    fun getLobbyServers(): List<SerializableServer> {
         return getAllServers().filter { it.lobby }
     }
 

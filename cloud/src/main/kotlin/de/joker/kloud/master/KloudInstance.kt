@@ -1,10 +1,11 @@
 package de.joker.kloud.master
 
-import de.joker.kloud.master.core.SecretManager
+import de.joker.kloud.master.backend.CloudBackend
+import de.joker.kloud.master.other.SecretManager
 import de.joker.kloud.master.core.ServerManager
 import de.joker.kloud.master.template.TemplateManager
-import de.joker.kloud.master.docker.DockerManager
-import de.joker.kloud.master.redis.RedisManager
+import de.joker.kloud.master.docker.DockerIntegration
+import de.joker.kloud.master.redis.RedisConnector
 import dev.fruxz.ascend.json.globalJson
 import kotlinx.serialization.InternalSerializationApi
 import org.koin.core.context.startKoin
@@ -15,11 +16,11 @@ import org.koin.logger.slf4jLogger
 object KloudInstance {
 
     val dockerModule = module {
-        single { DockerManager() }
+        single { DockerIntegration() }
     }
 
     val redisModule = module {
-        single { RedisManager() }
+        single { RedisConnector() }
     }
 
     val templateModule = module {
@@ -34,6 +35,10 @@ object KloudInstance {
         single { SecretManager() }
     }
 
+    val backendModule = module {
+        single { CloudBackend() }
+    }
+
     @OptIn(InternalSerializationApi::class)
     fun start() {
         startKoin {
@@ -44,17 +49,19 @@ object KloudInstance {
                 templateModule,
                 serverModule,
                 secretModule,
+                backendModule,
                 module {
                     single { globalJson }
                 }
             )
         }
 
-        val redis: RedisManager by inject(RedisManager::class.java)
-        val docker: DockerManager by inject(DockerManager::class.java)
+        val redis: RedisConnector by inject(RedisConnector::class.java)
+        val docker: DockerIntegration by inject(DockerIntegration::class.java)
         val template: TemplateManager by inject(TemplateManager::class.java)
         val serverManager: ServerManager by inject(ServerManager::class.java)
         val secretManager: SecretManager by inject(SecretManager::class.java)
+        val backend: CloudBackend by inject(CloudBackend::class.java)
 
         secretManager.loadSecrets()
 
@@ -65,11 +72,12 @@ object KloudInstance {
 
         serverManager.startup()
 
+        backend.start()
+
         // add shutdown hook to close resources
         Runtime.getRuntime().addShutdownHook(Thread {
-            serverManager.cleanup {
-                redis.redisAdapter.close()
-            }
+            // TODO: delete all servers
+            redis.redisAdapter.close()
         })
 
         while (true) {

@@ -1,11 +1,14 @@
 package de.joker.kloud.master.template
 
-import de.joker.kloud.shared.common.ServerType
-import de.joker.kloud.shared.logger
+import de.joker.kloud.shared.templates.DynamicTemplate
+import de.joker.kloud.shared.templates.Template
+import de.joker.kloud.shared.server.ServerType
+import de.joker.kloud.shared.utils.logger
 import dev.fruxz.ascend.json.globalJson
 import kotlinx.serialization.builtins.ListSerializer
 import org.koin.core.component.KoinComponent
 import java.io.File
+import kotlin.system.exitProcess
 
 
 class TemplateManager : KoinComponent{
@@ -33,6 +36,10 @@ class TemplateManager : KoinComponent{
         if (file.exists()) {
             val content = file.readText()
             val loadedTemplates = globalJson.decodeFromString<List<Template>>(content)
+            if (loadedTemplates.any { it.type == ServerType.PROXY && it.lobby }) {
+                logger.error("A proxy template cannot be a lobby. Please remove the lobby flag from the proxy template.")
+                exitProcess(1)
+            }
 
             loadedTemplates.forEach {
                 if (templates.containsKey(it.name)) {

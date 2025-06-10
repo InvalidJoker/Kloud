@@ -1,6 +1,8 @@
-package de.joker.kloud.shared
+package de.joker.kloud.shared.redis
 
+import de.joker.kloud.shared.utils.eventJson
 import de.joker.kloud.shared.events.IEvent
+import de.joker.kloud.shared.utils.logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
