@@ -10,7 +10,6 @@ import de.joker.kloud.shared.common.RedisServer
 import de.joker.kloud.shared.common.ServerData
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.events.ServerUpdateStateEvent
-import dev.fruxz.ascend.json.globalJson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -67,7 +66,7 @@ class ServerManager : KoinComponent {
                         container.id,
                         ServerState.GONE,
                     )
-                    redis.emitEvent(RedisNames.SERVERS, stoppedEvent)
+                    redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
                 }
             }
         }
@@ -107,7 +106,7 @@ class ServerManager : KoinComponent {
                 template.type,
                 template.lobby,
             )
-            redis.addToHash("servers", res.id, globalJson.encodeToString<RedisServer>(redisServer))
+            redis.saveServer(redisServer)
         }
     }
 
@@ -116,13 +115,12 @@ class ServerManager : KoinComponent {
         updateData: ServerData
     ) {
         val redis: RedisManager by inject()
-        val server = redis.getFromHash("servers", containerId)?.let {
-            globalJson.decodeFromString<RedisServer>(it)
-        } ?: throw IllegalStateException("Server with container ID $containerId not found in Redis")
+        val server = redis.getServer(containerId)
+            ?: throw IllegalStateException("Server with container ID $containerId not found")
 
         server.serverData = updateData
 
-        redis.addToHash("servers", containerId, globalJson.encodeToString<RedisServer>(server))
+        redis.saveServer(server)
     }
 
     fun cleanup(after: () -> Unit = {}) {
@@ -130,9 +128,7 @@ class ServerManager : KoinComponent {
         val docker: DockerManager by inject()
         val template: TemplateManager by inject()
 
-        val servers = redis.getHash("servers").map {
-            globalJson.decodeFromString<RedisServer>(it.value)
-        }
+        val servers = redis.getAllServers()
 
         if (::shutdownJob.isInitialized && shutdownJob.isActive) {
             shutdownJob.cancel()
@@ -157,7 +153,7 @@ class ServerManager : KoinComponent {
                     ServerState.STOPPING,
                 )
 
-                redis.emitEvent(RedisNames.SERVERS, stoppingEvent)
+                redis.publishEvent(RedisNames.SERVERS, stoppingEvent)
 
                 try {
                     docker.stopContainerBlocking(server.containerId) {
@@ -168,9 +164,9 @@ class ServerManager : KoinComponent {
                             ServerState.GONE,
                         )
 
-                        redis.emitEvent(RedisNames.SERVERS, stoppedEvent)
+                        redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
 
-                        redis.removeFromHash("servers", server.containerId)
+                        redis.removeServer(server.containerId)
                     }
                 } catch (e: Exception) {
                     logger.error("Failed to stop and delete static server ${server.serverName} (${server.containerId}): ${e.message}")
@@ -179,8 +175,8 @@ class ServerManager : KoinComponent {
                         server.containerId,
                         ServerState.GONE,
                     )
-                    redis.emitEvent(RedisNames.SERVERS, stoppedEvent)
-                    redis.removeFromHash("servers", server.containerId)
+                    redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
+                    redis.removeServer(server.containerId)
                 }
             } else {// dynamic server, just delete it
                 try {
@@ -193,9 +189,9 @@ class ServerManager : KoinComponent {
                     ServerState.GONE,
                 )
 
-                redis.emitEvent(RedisNames.SERVERS, stoppedEvent)
+                redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
 
-                redis.removeFromHash("servers", server.containerId)
+                redis.removeServer(server.containerId)
             }
         }
 
@@ -210,16 +206,14 @@ class ServerManager : KoinComponent {
 
         shutdownJob = scope.launch {
             while (true) {
-                val servers = redis.getHash("servers").map {
-                    globalJson.decodeFromString<RedisServer>(it.value)
-                }
+                val servers = redis.getAllServers()
 
                 servers.forEach { server ->
                     val state = docker.getContainerState(server.containerId)
 
                     if (state == null || state.running == false) {
                         logger.warn("Server ${server.serverName} (${server.templateName}) is not running, removing from Redis.")
-                        redis.removeFromHash("servers", server.containerId)
+                        redis.removeServer(server.containerId)
 
 
                         val template = templateManager.getTemplate(server.templateName)
@@ -234,7 +228,7 @@ class ServerManager : KoinComponent {
                             ServerState.GONE,
                         )
 
-                        redis.emitEvent(RedisNames.SERVERS, stoppedEvent)
+                        redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
                     }
                 }
 

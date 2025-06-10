@@ -1,16 +1,11 @@
 package de.joker.kloud.master.template
 
-import de.joker.kloud.master.core.SecretManager
 import de.joker.kloud.shared.common.ServerType
 import de.joker.kloud.shared.logger
 import dev.fruxz.ascend.json.globalJson
 import kotlinx.serialization.builtins.ListSerializer
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
-import org.yaml.snakeyaml.DumperOptions
-import org.yaml.snakeyaml.Yaml
 import java.io.File
-import java.net.URI
 
 
 class TemplateManager : KoinComponent{

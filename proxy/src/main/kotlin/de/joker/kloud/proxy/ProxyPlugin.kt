@@ -10,10 +10,8 @@ import de.joker.kloud.proxy.listener.ConnectionListener
 import de.joker.kloud.proxy.listener.KickListener
 import de.joker.kloud.proxy.redis.RedisSubscriber
 import de.joker.kloud.proxy.redis.serverInfo
-import de.joker.kloud.shared.common.RedisServer
 import de.joker.kloud.shared.common.ServerType
 import de.joker.kloud.shared.logger
-import dev.fruxz.ascend.json.globalJson
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import org.koin.java.KoinJavaComponent.inject
@@ -53,15 +51,13 @@ class ProxyPlugin @Inject constructor(
 
         redisSubscriber.connect()
 
-        val servers = redisSubscriber.getHash("servers")
+        val servers = redisSubscriber.getAllServers()
 
         servers.forEach { server ->
-            val serverData = globalJson.decodeFromString<RedisServer>(server.value)
+            if (server.type != ServerType.PROXIED_SERVER) return@forEach
 
-            if (serverData.type != ServerType.PROXIED_SERVER) return@forEach
-
-            this.server.registerServer(serverData.serverInfo)
-            logger.info("Registered server: ${serverData.serverName} at port ${serverData.connectionPort}")
+            this.server.registerServer(server.serverInfo)
+            logger.info("Registered server: ${server.serverName} at port ${server.connectionPort}")
         }
 
         logger.info("Kloud Proxy initialized with ${servers.size} servers registered.")

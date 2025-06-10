@@ -323,7 +323,7 @@ class DockerManager : KoinComponent {
             containerCmd.withHostConfig(
                 HostConfig.newHostConfig()
                     .withPortBindings(*ports.toTypedArray())
-                    //.withAutoRemove(true)
+                    .withAutoRemove(true)
                     .withBinds(*binds.toTypedArray())
                     .ifTrue({ template.type != ServerType.STANDALONE_SERVER }) { e ->
                         e.withNetworkMode("kcloud_network")
@@ -336,14 +336,14 @@ class DockerManager : KoinComponent {
                 serverId = container.id,
                 state = ServerState.STARTING
             )
-            redis.emitEvent(RedisNames.SERVERS, event)
+            redis.publishEvent(RedisNames.SERVERS, event)
 
             startContainerInBackground(container.id) {
                 val startedEvent = ServerUpdateStateEvent(
                     serverId = container.id,
                     state = ServerState.RUNNING
                 )
-                redis.emitEvent(RedisNames.SERVERS, startedEvent)
+                redis.publishEvent(RedisNames.SERVERS, startedEvent)
                 onFinished?.invoke(container, free)
             }
             logger.info("Container ${template.name} created with ID ${container.id}")

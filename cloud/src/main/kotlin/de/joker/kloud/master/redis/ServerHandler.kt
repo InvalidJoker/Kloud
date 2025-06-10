@@ -1,9 +1,11 @@
 package de.joker.kloud.master.redis
 
+import de.joker.kloud.master.core.ServerManager
+import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.shared.RedisHandler
 import de.joker.kloud.shared.events.CreateServerEvent
 import de.joker.kloud.shared.events.IEvent
-import de.joker.kloud.shared.events.ServerUpdateStateEvent
+import org.koin.java.KoinJavaComponent.inject
 
 class ServerHandler: RedisHandler {
     override val channel = "servers"
@@ -11,11 +13,17 @@ class ServerHandler: RedisHandler {
     override fun handleEvent(event: IEvent) {
         when (event) {
             is CreateServerEvent -> {
-                println("Handling CreateServerEvent with template: ${event.template}")
+                val manager: ServerManager by inject(ServerManager::class.java)
+                val template: TemplateManager by inject(TemplateManager::class.java)
+
+                val serverTemplate = template.getTemplate(event.template)
+                if (serverTemplate == null) {
+                    println("Template ${event.template} not found.")
+                    return
+                }
+                manager.createServer(serverTemplate)
             }
-            is ServerUpdateStateEvent -> {
-                println("Handling ServerUpdateStateEvent for serverId: ${event.serverId} with state: ${event.state}")
-            }
+            else -> {}
         }
     }
 }

@@ -10,7 +10,7 @@ import redis.clients.jedis.JedisPool
 import redis.clients.jedis.JedisPoolConfig
 import redis.clients.jedis.JedisPubSub
 
-abstract class RedisAdapter(
+class RedisCalls(
     val host: String,
     val port: Int,
     val channels: List<RedisHandler>

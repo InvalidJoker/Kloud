@@ -30,9 +30,7 @@ class ServerHandler: RedisHandler {
         when (event) {
             is ServerUpdateStateEvent -> {
                 val redis: RedisSubscriber by inject(RedisSubscriber::class.java)
-                val server = redis.getFromHash("servers", event.serverId)?.let {
-                    globalJson.decodeFromString<RedisServer>(it)
-                }
+                val server = redis.getServer(event.serverId)
 
                 if (server == null) {
                     logger.warn("Server with ID ${event.serverId} not found in Redis.")

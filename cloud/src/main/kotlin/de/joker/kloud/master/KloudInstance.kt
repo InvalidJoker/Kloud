@@ -68,7 +68,7 @@ object KloudInstance {
         // add shutdown hook to close resources
         Runtime.getRuntime().addShutdownHook(Thread {
             serverManager.cleanup {
-                redis.close()
+                redis.redisAdapter.close()
             }
         })
 
