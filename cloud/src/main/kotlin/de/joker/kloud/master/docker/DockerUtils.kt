@@ -46,8 +46,3 @@ object DockerUtils {
         return null // No port found in range
     }
 }
-
-fun main() {
-    val availablePort = DockerUtils.findClosestPortTo25565()
-    println("Available port found: $availablePort")
-}

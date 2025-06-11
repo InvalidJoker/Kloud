@@ -1,0 +1,77 @@
+package de.joker.kloud.shared.templates
+
+import build.buf.gen.templates.v1.Template as ProtoTemplate
+import de.joker.kloud.shared.server.ServerType
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class Template(
+    val name: String,
+    val image: String,
+    val environment: Map<String, String>,
+    val lobby: Boolean = false,
+    val type: ServerType = ServerType.PROXIED_SERVER,
+    val requiredPermissions: List<String> = emptyList(),
+    val dynamic: DynamicTemplate? = null, // if set server is dynamic and can scale
+) {
+    fun getFilePaths(): List<String> {
+        val base = "./templates"
+        val mainPath = "$base/$name"
+        return listOf(mainPath) + (dynamic?.extraDirectories?.map { dir ->
+            "$mainPath/$dir"
+        } ?: emptyList())
+    }
+
+    fun toProto(): ProtoTemplate {
+        return ProtoTemplate.newBuilder()
+            .setName(name)
+            .setImage(image)
+            .putAllEnvironment(environment)
+            .setLobby(lobby)
+            .setType(type.toProto())
+            .addAllRequiredPermissions(requiredPermissions)
+            .apply {
+                this@Template.dynamic?.let {
+                    setDynamic(
+                        it.toProto()
+                    )
+                }
+            }
+            .build()
+    }
+
+    companion object {
+        fun fromProto(proto: ProtoTemplate): Template {
+            return Template(
+                name = proto.name,
+                image = proto.image,
+                environment = proto.environmentMap,
+                lobby = proto.lobby,
+                type = ServerType.fromProto(proto.type),
+                requiredPermissions = proto.requiredPermissionsList,
+                dynamic = if (proto.hasDynamic()) {
+                    DynamicTemplate(
+                        minServers = proto.dynamic.minServers,
+                        maxServers = proto.dynamic.maxServers,
+                        extraDirectories = proto.dynamic.extraDirectoriesList
+                    )
+                } else null
+            )
+        }
+    }
+}
+
+@Serializable
+data class DynamicTemplate(
+    val minServers: Int,
+    val maxServers: Int,
+    val extraDirectories: List<String> = emptyList(),
+) {
+    fun toProto(): build.buf.gen.templates.v1.DynamicTemplate {
+        return build.buf.gen.templates.v1.DynamicTemplate.newBuilder()
+            .setMinServers(minServers)
+            .setMaxServers(maxServers)
+            .addAllExtraDirectories(extraDirectories)
+            .build()
+    }
+}

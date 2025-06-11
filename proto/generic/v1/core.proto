@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package generic.v1;
+
+message GenericResponse {}
+
+message GenericRequest {}
+
+message GenericIdentification {
+  string id = 1;
+}

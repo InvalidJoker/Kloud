@@ -2,18 +2,17 @@ package de.joker.kloud.proxy.redis
 
 import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.server.ServerInfo
-import de.joker.kloud.shared.RedisHandler
-import de.joker.kloud.shared.common.RedisServer
-import de.joker.kloud.shared.common.ServerType
+import de.joker.kloud.shared.redis.RedisHandler
+import de.joker.kloud.shared.server.SerializableServer
+import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.events.IEvent
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.events.ServerUpdateStateEvent
-import de.joker.kloud.shared.logger
-import dev.fruxz.ascend.json.globalJson
+import de.joker.kloud.shared.utils.logger
 import org.koin.java.KoinJavaComponent.inject
 import java.net.InetSocketAddress
 
-val RedisServer.serverInfo: ServerInfo?
+val SerializableServer.serverInfo: ServerInfo?
     get() = ServerInfo(
         this.serverName,
         InetSocketAddress(
@@ -37,7 +36,7 @@ class ServerHandler: RedisHandler {
                     return
                 }
 
-                if (server.type != ServerType.PROXIED_SERVER) return
+                if (server.template.type != ServerType.PROXIED_SERVER) return
 
                 val proxyServer: ProxyServer by inject(ProxyServer::class.java)
 

@@ -4,7 +4,7 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent
 import com.velocitypowered.api.proxy.ProxyServer
 import de.joker.kloud.proxy.redis.RedisSubscriber
-import de.joker.kloud.shared.logger
+import de.joker.kloud.shared.utils.logger
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 

@@ -10,8 +10,12 @@ import de.joker.kloud.proxy.listener.ConnectionListener
 import de.joker.kloud.proxy.listener.KickListener
 import de.joker.kloud.proxy.redis.RedisSubscriber
 import de.joker.kloud.proxy.redis.serverInfo
-import de.joker.kloud.shared.common.ServerType
-import de.joker.kloud.shared.logger
+import de.joker.kloud.shared.api.APIWrapper
+import de.joker.kloud.shared.server.ServerType
+import de.joker.kloud.shared.utils.logger
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import org.koin.java.KoinJavaComponent.inject
@@ -26,6 +30,7 @@ import org.koin.logger.slf4jLogger
 class ProxyPlugin @Inject constructor(
     val server: ProxyServer,
 ) {
+    @OptIn(DelicateCoroutinesApi::class)
     @Subscribe
     fun handleInitialize(ignored: ProxyInitializeEvent) {
         val thisModule = module {
@@ -44,6 +49,23 @@ class ProxyPlugin @Inject constructor(
             )
         }
 
+        val token = System.getenv("KLOUD_API_TOKEN")
+            ?: throw IllegalStateException("KLOUD_API_TOKEN environment variable is not set.")
+        val port = System.getenv("KLOUD_API_PORT")?.toIntOrNull()
+            ?: throw IllegalStateException("KLOUD_API_PORT environment variable is not set or invalid.")
+
+
+        // DEBUG stuff, will be removed in production
+        val api = APIWrapper(
+            host = "host.docker.internal",
+            token = token,
+            port = port
+        )
+
+        GlobalScope.launch {
+            println(api.getTemplates())
+        }
+
         server.eventManager.register(this, ConnectionListener())
         server.eventManager.register(this, KickListener())
 
@@ -54,7 +76,7 @@ class ProxyPlugin @Inject constructor(
         val servers = redisSubscriber.getAllServers()
 
         servers.forEach { server ->
-            if (server.type != ServerType.PROXIED_SERVER) return@forEach
+            if (server.template.type != ServerType.PROXIED_SERVER) return@forEach
 
             this.server.registerServer(server.serverInfo)
             logger.info("Registered server: ${server.serverName} at port ${server.connectionPort}")

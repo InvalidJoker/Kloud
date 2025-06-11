@@ -18,6 +18,11 @@ velocity = "3.4.0-SNAPSHOT"
 kotlinDotenv = "6.5.1"
 kUtils = "beta-0.0.2"
 yaml = "2.2"
+protospec = "1.4.3.1.20250611114831.985c2b2236b2"
+protobuf = "3.25.2"
+grpc = "1.61.0"
+grpc-kotlin = "1.4.1"
+toml = "0.7.2"
 
 [libraries]
 ascend = { module = "dev.fruxz:ascend", version.ref = "ascend" }
@@ -47,6 +52,16 @@ velocity = { module = "com.velocitypowered:velocity-api", version.ref = "velocit
 kUtilsCore = { module = "com.github.InvalidJoker.KUtils:core", version.ref = "kUtils" }
 
 yaml = { module = "org.yaml:snakeyaml", version.ref = "yaml" }
+protospec = { module = "build.buf.gen:invalidjoker_kloud_grpc_kotlin", version.ref = "protospec" }
+
+protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
+
+grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
+grpc-kotlin-stub = { module = "io.grpc:grpc-kotlin-stub", version.ref = "grpc-kotlin" }
+grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
+grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
+
+toml = { module = "com.moandjiezana.toml:toml4j", version.ref = "toml" }
 
 # Libraries can be bundled together for easier import
 [bundles]
@@ -58,6 +73,13 @@ backend = [
     "ktorSerializationKotlinxJson",
     "dockerJava",
     "dockerJavaOkHttp",
+    "protospec",
+    "protobuf-kotlin",
+    "grpc-stub",
+    "grpc-kotlin-stub",
+    "grpc-protobuf",
+    "grpc-netty-shaded",
+    "toml"
 ]
 utilities = [
     "ascend",

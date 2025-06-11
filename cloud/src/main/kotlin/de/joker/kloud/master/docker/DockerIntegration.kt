@@ -10,16 +10,18 @@ import com.github.dockerjava.api.model.Volume
 import com.github.dockerjava.core.DefaultDockerClientConfig
 import com.github.dockerjava.core.DockerClientBuilder
 import com.github.dockerjava.okhttp.OkDockerHttpClient
+import com.moandjiezana.toml.Toml
+import com.moandjiezana.toml.TomlWriter
 import de.joker.kloud.master.Config
-import de.joker.kloud.master.core.SecretManager
-import de.joker.kloud.master.template.Template
+import de.joker.kloud.master.other.SecretManager
+import de.joker.kloud.master.redis.RedisConnector
 import de.joker.kloud.master.template.TemplateManager
-import de.joker.kloud.shared.logger
-import de.joker.kloud.master.redis.RedisManager
-import de.joker.kloud.shared.RedisNames
-import de.joker.kloud.shared.common.ServerType
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.events.ServerUpdateStateEvent
+import de.joker.kloud.shared.redis.RedisNames
+import de.joker.kloud.shared.server.ServerType
+import de.joker.kloud.shared.templates.Template
+import de.joker.kloud.shared.utils.logger
 import de.joker.kutils.core.extensions.ifTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,9 +31,9 @@ import org.koin.core.component.inject
 import org.yaml.snakeyaml.DumperOptions
 import org.yaml.snakeyaml.Yaml
 import java.io.File
-import kotlin.collections.mapNotNull
 
-class DockerManager : KoinComponent {
+
+class DockerIntegration : KoinComponent {
     lateinit var dockerClient: DockerClient
 
     val scope = CoroutineScope(Dispatchers.IO)
@@ -58,12 +60,12 @@ class DockerManager : KoinComponent {
 
         val templateManager: TemplateManager by inject()
 
-        val kCludNetwork = dockerClient.listNetworksCmd()
+        val kCloudNetwork = dockerClient.listNetworksCmd()
             .withNameFilter("kcloud_network")
             .exec()
             .firstOrNull()
 
-        if (kCludNetwork == null) {
+        if (kCloudNetwork == null) {
             dockerClient.createNetworkCmd()
                 .withName("kcloud_network")
                 .withDriver("bridge")
@@ -108,6 +110,15 @@ class DockerManager : KoinComponent {
         }
     }
 
+    fun restartContainerInBackground(containerId: String, onRestarted: (() -> Unit)? = null) {
+        scope.launch {
+            restartContainerBlocking(containerId) {
+                onRestarted?.invoke()
+            }
+        }
+    }
+
+
     fun startContainerBlocking(containerId: String, onStarted: (() -> Unit)? = null) {
         dockerClient.startContainerCmd(containerId).exec()
         logger.info("Container $containerId started successfully.")
@@ -126,6 +137,10 @@ class DockerManager : KoinComponent {
             .exec()
         logger.info("Container $containerId deleted successfully.")
         onDeleted?.invoke()
+    }
+
+    fun restartContainerBlocking(containerId: String, onRestarted: (() -> Unit)? = null) {
+        dockerClient.restartContainerCmd(containerId).exec()
     }
 
     fun getContainerState(containerId: String): InspectContainerResponse.ContainerState? {
@@ -155,7 +170,7 @@ class DockerManager : KoinComponent {
         }
     }
 
-    fun movePlaceholders(path: File) {
+    fun movePaperPlaceholders(path: File) {
         val paperGlobalFile = File(path, "config/paper-global.yml")
 
         val yamlParser = Yaml(
@@ -192,12 +207,36 @@ class DockerManager : KoinComponent {
         paperGlobalFile.writeText(yamlParser.dump(current))
     }
 
+
+    fun moveVelocityPlaceholders(path: File) {
+        val velocityGlobalFile = File(path, "velocity.toml")
+
+        val text = velocityGlobalFile.readText()
+
+        val data = Toml().read(text)
+
+        val current = data.toMap().toMutableMap()
+
+        current["online-mode"] = true
+        current["player-info-forwarding-mode"] = "modern"
+        current["prevent-client-proxy-connections"] = false
+        current["forwarding-secret-file"] = "forwarding.secret"
+
+        val tomlWriter = TomlWriter.Builder()
+            .indentValuesBy(2)
+            .indentTablesBy(4)
+            .padArrayDelimitersBy(3)
+            .build()
+
+        velocityGlobalFile.writeText(tomlWriter.write(current))
+    }
+
     fun createContainer(
         template: Template,
         serverName: String,
         onFinished: ((container: CreateContainerResponse, port: Int) -> Unit)? = null
     ) {
-        val redis: RedisManager by inject()
+        val redis: RedisConnector by inject()
         val free = DockerUtils.findClosestPortTo25565() ?: throw IllegalStateException("No free port found for container ${template.name}")
         val secretManager: SecretManager by inject()
 
@@ -220,6 +259,8 @@ class DockerManager : KoinComponent {
             putIfAbsent("KLOUD_SERVER_PORT", free.toString())
             putIfAbsent("KLOUD_REDIS_HOST", redisHost)
             putIfAbsent("KLOUD_REDIS_PORT", Config.redisPort.toString())
+            putIfAbsent("KLOUD_API_TOKEN", Config.apiToken)
+            putIfAbsent("KLOUD_API_PORT", Config.backendPort.toString())
         }
 
         if (template.type == ServerType.PROXIED_SERVER) {
@@ -264,7 +305,9 @@ class DockerManager : KoinComponent {
             }
 
             if (template.type == ServerType.PROXIED_SERVER) {
-                movePlaceholders(dir)
+                movePaperPlaceholders(dir)
+            } else if (template.type == ServerType.PROXY) {
+                moveVelocityPlaceholders(dir)
             }
 
             // Create volume if it doesn't exist

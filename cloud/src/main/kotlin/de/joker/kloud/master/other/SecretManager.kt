@@ -1,12 +1,10 @@
-package de.joker.kloud.master.core
+package de.joker.kloud.master.other
 
 import org.koin.core.component.KoinComponent
 import java.io.File
 import java.security.SecureRandom
 
 class SecretManager: KoinComponent {
-    val random: SecureRandom = SecureRandom()
-
     fun loadSecrets(): String {
         val home = System.getProperty("user.home")
         val secretsFile = "$home/.kloud/forwarding.secret"
@@ -16,7 +14,7 @@ class SecretManager: KoinComponent {
             file.parentFile.mkdirs()
             file.createNewFile()
 
-            file.writeText(generateSecureRandomString(64))
+            file.writeText(generateSecureRandomString())
         }
         return file.readText()
     }
@@ -35,14 +33,12 @@ class SecretManager: KoinComponent {
         return file.readText()
     }
 
-    private fun generateSecureRandomString(length: Int): String {
-        val s = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[]{}|;:,.<>?"
-        val sb = StringBuilder(length)
-        for (i in 0 until length) {
-            val index = random.nextInt(s.length)
-            sb.append(s[index])
-        }
-        return sb.toString()
+    private fun generateSecureRandomString(): String {
+        val random = SecureRandom()
+
+        val bytes = ByteArray(16) // 128 bits
+        random.nextBytes(bytes)
+        return bytes.joinToString("") { String.format("%02x", it) }
     }
 
 

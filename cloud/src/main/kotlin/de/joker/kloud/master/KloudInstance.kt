@@ -1,11 +1,14 @@
 package de.joker.kloud.master
 
-import de.joker.kloud.master.core.SecretManager
+import de.joker.kloud.master.backend.CloudBackend
 import de.joker.kloud.master.core.ServerManager
+import de.joker.kloud.master.docker.DockerIntegration
+import de.joker.kloud.master.other.SecretManager
+import de.joker.kloud.master.redis.RedisConnector
 import de.joker.kloud.master.template.TemplateManager
-import de.joker.kloud.master.docker.DockerManager
-import de.joker.kloud.master.redis.RedisManager
+import de.joker.kloud.shared.utils.logger
 import dev.fruxz.ascend.json.globalJson
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.InternalSerializationApi
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
@@ -15,11 +18,11 @@ import org.koin.logger.slf4jLogger
 object KloudInstance {
 
     val dockerModule = module {
-        single { DockerManager() }
+        single { DockerIntegration() }
     }
 
     val redisModule = module {
-        single { RedisManager() }
+        single { RedisConnector() }
     }
 
     val templateModule = module {
@@ -34,8 +37,12 @@ object KloudInstance {
         single { SecretManager() }
     }
 
+    val backendModule = module {
+        single { CloudBackend() }
+    }
+
     @OptIn(InternalSerializationApi::class)
-    fun start() {
+    suspend fun start() {
         startKoin {
             slf4jLogger()
             modules(
@@ -44,17 +51,19 @@ object KloudInstance {
                 templateModule,
                 serverModule,
                 secretModule,
+                backendModule,
                 module {
                     single { globalJson }
                 }
             )
         }
 
-        val redis: RedisManager by inject(RedisManager::class.java)
-        val docker: DockerManager by inject(DockerManager::class.java)
+        val redis: RedisConnector by inject(RedisConnector::class.java)
+        val docker: DockerIntegration by inject(DockerIntegration::class.java)
         val template: TemplateManager by inject(TemplateManager::class.java)
         val serverManager: ServerManager by inject(ServerManager::class.java)
         val secretManager: SecretManager by inject(SecretManager::class.java)
+        val backend: CloudBackend by inject(CloudBackend::class.java)
 
         secretManager.loadSecrets()
 
@@ -65,36 +74,15 @@ object KloudInstance {
 
         serverManager.startup()
 
-        // add shutdown hook to close resources
-        Runtime.getRuntime().addShutdownHook(Thread {
-            serverManager.cleanup {
+        backend.start()
+
+        suspendCancellableCoroutine { continuation ->
+            Runtime.getRuntime().addShutdownHook(Thread {
                 redis.redisAdapter.close()
-            }
-        })
-
-        while (true) {
-            val input = readLine()
-            if (input == null) continue
-
-            when (input.split(" ").firstOrNull()?.lowercase()) {
-                "exit", "quit" -> {
-                    println("Exiting Kloud instance...")
-                    break
+                continuation.resume(Unit) { cause, _, _ ->
+                    logger.info("Server shutdown due to: $cause")
                 }
-                "start" -> {
-                    val templateName = input.split(" ").getOrNull(1)
-                    if (templateName != null) {
-                        val templateToStart = template.getTemplate(templateName)
-                        if (templateToStart != null) {
-                            serverManager.createServer(templateToStart)
-                        } else {
-                            println("Template '$templateName' not found.")
-                        }
-                    } else {
-                        println("Please provide a template name to start.")
-                    }
-                }
-            }
+            })
         }
     }
 }

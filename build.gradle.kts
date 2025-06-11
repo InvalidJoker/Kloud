@@ -8,6 +8,7 @@ allprojects {
     repositories {
         mavenCentral()
         maven("https://jitpack.io")
+        maven("https://buf.build/gen/maven")
         maven("https://nexus.fruxz.dev/repository/public/")
         maven {
             name = "papermc"

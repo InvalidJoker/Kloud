@@ -4,9 +4,7 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.player.KickedFromServerEvent
 import com.velocitypowered.api.proxy.ProxyServer
 import de.joker.kloud.proxy.redis.RedisSubscriber
-import de.joker.kloud.shared.common.RedisServer
-import de.joker.kloud.shared.logger
-import dev.fruxz.ascend.json.globalJson
+import de.joker.kloud.shared.utils.logger
 import dev.fruxz.stacked.text
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
