@@ -90,67 +90,70 @@ class ServerManager : KoinComponent {
 
     fun restartServer(
         id: String
-    ) {
-        scope.launch {
-            val docker: DockerIntegration by inject()
-            val redis: RedisConnector by inject()
-            val server = redis.getServer(id) ?: return@launch
+    ): Boolean {
+        val docker: DockerIntegration by inject()
+        val redis: RedisConnector by inject()
+        val server = redis.getServer(id) ?: return false
 
-            logger.info("Restarting server: ${server.serverName}")
+        logger.info("Restarting server: ${server.serverName}")
 
-            docker.stopContainerInBackground(id) {
-                docker.deleteContainerInBackground(id, true) {
-                    scope.launch {
-                        createServer(server.template, server.serverData)?.let { newId ->
-                            val restartedEvent = ServerUpdateStateEvent(
-                                newId,
-                                ServerState.STARTING
-                            )
-                            redis.publishEvent(RedisNames.SERVERS, restartedEvent)
-                        }
+        docker.stopContainerInBackground(id) {
+            docker.deleteContainerInBackground(id, true) {
+                scope.launch {
+                    createServer(server.template, server.serverData)?.let { newId ->
+                        val restartedEvent = ServerUpdateStateEvent(
+                            newId,
+                            ServerState.STARTING
+                        )
+                        redis.publishEvent(RedisNames.SERVERS, restartedEvent)
                     }
                 }
             }
         }
+
+        return true
+
     }
 
     fun updateServer(
         id: String,
         serverData: ServerData
-    ) {
-        scope.launch {
-            val redis: RedisConnector by inject()
-            val server = redis.getServer(id) ?: return@launch
+    ): Boolean {
+        val redis: RedisConnector by inject()
+        val server = redis.getServer(id) ?: return false
 
-            logger.info("Updating server: ${server.serverName}")
+        logger.info("Updating server: ${server.serverName}")
 
-            // Update the server data in Redis
-            server.serverData = serverData
-            redis.saveServer(server)
-        }
+        // Update the server data in Redis
+        server.serverData = serverData
+        redis.saveServer(server)
+
+        return true
+
     }
 
     fun stopServer(
         id: String
-    ) {
-        scope.launch {
-            val docker: DockerIntegration by inject()
-            val redis: RedisConnector by inject()
-            val server = redis.getServer(id) ?: return@launch
+    ): Boolean {
+        val docker: DockerIntegration by inject()
+        val redis: RedisConnector by inject()
+        val server = redis.getServer(id) ?: return false
 
-            logger.info("Stopping server: ${server.serverName}")
+        logger.info("Stopping server: ${server.serverName}")
 
-            docker.stopContainerInBackground(id) {
-                docker.deleteContainerInBackground(id, true) {
-                    redis.removeServer(id)
-                    val stoppedEvent = ServerUpdateStateEvent(
-                        id,
-                        ServerState.GONE
-                    )
-                    redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
-                }
+        docker.stopContainerInBackground(id) {
+            docker.deleteContainerInBackground(id, true) {
+                redis.removeServer(id)
+                val stoppedEvent = ServerUpdateStateEvent(
+                    id,
+                    ServerState.GONE
+                )
+                redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
             }
         }
+
+        return true
+
     }
 
     suspend fun createServer(

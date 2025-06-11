@@ -6,44 +6,6 @@ message GenericResponse {}
 
 message GenericRequest {}
 
-message GenericPagedRequest {
-  optional uint32 limit = 1;
-  optional uint32 page = 2;
-}
-
 message GenericIdentification {
-  uint32 id = 1;
-}
-
-message GenericURLResponse {
-  string url = 1;
-}
-
-message GenericStringList {
-  repeated string array = 1;
-}
-
-message GenericJsonContent {
-  string json = 1;
-}
-
-message GenericStringIdentification {
   string id = 1;
-}
-
-enum NetworkProtocol {
-  NETWORK_PROTOCOL_TCP = 0;
-  NETWORK_PROTOCOL_UDP = 1;
-}
-
-message Range {
-  uint32 start = 1;
-  uint32 end = 2;
-}
-
-message PageSplit {
-  uint32 limit = 1;
-  uint32 page = 2;
-  uint32 total_pages = 3;
-  uint64 total_records = 4;
 }

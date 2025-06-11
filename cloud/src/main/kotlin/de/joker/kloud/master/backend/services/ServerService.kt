@@ -1,5 +1,6 @@
 package de.joker.kloud.master.backend.services
 
+import build.buf.gen.generic.v1.GenericIdentification
 import build.buf.gen.generic.v1.GenericResponse
 import build.buf.gen.server.v1.CreateServerRequest
 import build.buf.gen.server.v1.ServerCreateResponse
@@ -72,6 +73,26 @@ class ServerService: ServerServiceGrpcKt.ServerServiceCoroutineImplBase() {
             request.id,
             data
         )
+        return GenericResponse.newBuilder().build()
+    }
+
+    override suspend fun restartServer(request: GenericIdentification): GenericResponse {
+        val serverManager: ServerManager by inject(ServerManager::class.java)
+
+        if (!serverManager.restartServer(request.id)) {
+            throw StatusException(Status.NOT_FOUND.withDescription("Server with ID '${request.id}' not found."))
+        }
+
+        return GenericResponse.newBuilder().build()
+    }
+
+    override suspend fun stopServer(request: GenericIdentification): GenericResponse {
+        val serverManager: ServerManager by inject(ServerManager::class.java)
+
+        if (!serverManager.stopServer(request.id)) {
+            throw StatusException(Status.NOT_FOUND.withDescription("Server with ID '${request.id}' not found."))
+        }
+
         return GenericResponse.newBuilder().build()
     }
 }
