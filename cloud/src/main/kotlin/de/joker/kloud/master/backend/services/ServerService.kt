@@ -39,11 +39,6 @@ class ServerService : ServerServiceGrpcKt.ServerServiceCoroutineImplBase() {
             )
         )
 
-        if (id == null) {
-            throw StatusException(Status.INTERNAL.withDescription("Failed to create server for template '${request.templateId}'."))
-        }
-
-
         return ServerCreateResponse.newBuilder()
             .setId(id)
             .build()

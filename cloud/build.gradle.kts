@@ -10,6 +10,7 @@ dependencies {
     implementation(libs.bundles.redis)
     implementation(libs.bundles.koin)
     implementation(libs.yaml)
+    implementation(libs.bundles.grpc)
     implementation(project(":shared"))
 }
 

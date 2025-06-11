@@ -1,10 +1,10 @@
 <configuration>
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender" level="INFO">
         <encoder>
             <pattern>%d{YYYY-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    <root level="trace">
+    <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
     <logger name="org.eclipse.jetty" level="INFO"/>
@@ -14,6 +14,4 @@
     <logger name="com.github.dockerjava" level="INFO"/>
     <logger name="c.g.d.a.c" level="INFO"/>
     <logger name="c.g.d.jaxrs" level="INFO"/>
-    <!-- default logg level for all other packages -->
-    <logger level="INFO"/>
 </configuration>

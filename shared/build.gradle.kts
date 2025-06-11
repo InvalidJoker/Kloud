@@ -6,5 +6,5 @@ plugins {
 dependencies {
     implementation(libs.bundles.utilities)
     implementation(libs.bundles.redis)
-    implementation(libs.protospec)
+    implementation(libs.bundles.grpc)
 }

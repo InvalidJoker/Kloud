@@ -29,28 +29,23 @@ class ServerHandler : RedisHandler {
         when (event) {
             is ServerUpdateStateEvent -> {
                 val redis: RedisSubscriber by inject(RedisSubscriber::class.java)
-                val server = redis.getServer(event.serverId)
 
-                if (server == null) {
-                    logger.warn("Server with ID ${event.serverId} not found in Redis.")
-                    return
-                }
 
-                if (server.template.type != ServerType.PROXIED_SERVER) return
+                if (event.server.template.type != ServerType.PROXIED_SERVER) return
 
                 val proxyServer: ProxyServer by inject(ProxyServer::class.java)
 
                 when (event.state) {
                     ServerState.RUNNING -> {
-                        proxyServer.registerServer(server.serverInfo)
+                        proxyServer.registerServer(event.server.serverInfo)
                     }
 
-                    ServerState.STOPPING -> {
-                        val serverInfo = proxyServer.getServer(server.serverName)
+                    ServerState.GONE -> {
+                        val serverInfo = proxyServer.getServer(event.server.serverName)
                         if (serverInfo != null && serverInfo.isPresent) {
                             proxyServer.unregisterServer(serverInfo.get().serverInfo)
                         } else {
-                            logger.warn("Server ${server.serverName} not found in proxy.")
+                            logger.warn("Server ${event.server.serverName} not found in proxy.")
                         }
                     }
 

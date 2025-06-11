@@ -75,6 +75,15 @@ class ProxyPlugin @Inject constructor(
 
         val servers = redisSubscriber.getAllServers()
 
+        // remove all existing servers in the proxy
+        server.allServers.forEach { existingServer ->
+            val name = existingServer.serverInfo.name
+            if (servers.none { it.serverName == name }) {
+                server.unregisterServer(existingServer.serverInfo)
+                logger.info("Unregistered server: $name")
+            }
+        }
+
         servers.forEach { server ->
             if (server.template.type != ServerType.PROXIED_SERVER) return@forEach
 

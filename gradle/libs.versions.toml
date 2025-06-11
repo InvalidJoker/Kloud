@@ -73,13 +73,15 @@ backend = [
     "ktorSerializationKotlinxJson",
     "dockerJava",
     "dockerJavaOkHttp",
+    "toml"
+]
+grpc = [
     "protospec",
     "protobuf-kotlin",
     "grpc-stub",
     "grpc-kotlin-stub",
     "grpc-protobuf",
     "grpc-netty-shaded",
-    "toml"
 ]
 utilities = [
     "ascend",

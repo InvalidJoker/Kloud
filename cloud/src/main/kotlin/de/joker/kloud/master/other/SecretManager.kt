@@ -36,10 +36,8 @@ class SecretManager : KoinComponent {
     private fun generateSecureRandomString(): String {
         val random = SecureRandom()
 
-        val bytes = ByteArray(16) // 128 bits
+        val bytes = ByteArray(32)
         random.nextBytes(bytes)
         return bytes.joinToString("") { String.format("%02x", it) }
     }
-
-
 }
