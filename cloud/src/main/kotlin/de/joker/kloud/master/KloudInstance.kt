@@ -1,12 +1,14 @@
 package de.joker.kloud.master
 
 import de.joker.kloud.master.backend.CloudBackend
-import de.joker.kloud.master.other.SecretManager
 import de.joker.kloud.master.core.ServerManager
-import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.master.docker.DockerIntegration
+import de.joker.kloud.master.other.SecretManager
 import de.joker.kloud.master.redis.RedisConnector
+import de.joker.kloud.master.template.TemplateManager
+import de.joker.kloud.shared.utils.logger
 import dev.fruxz.ascend.json.globalJson
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.InternalSerializationApi
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
@@ -40,7 +42,7 @@ object KloudInstance {
     }
 
     @OptIn(InternalSerializationApi::class)
-    fun start() {
+    suspend fun start() {
         startKoin {
             slf4jLogger()
             modules(
@@ -74,35 +76,13 @@ object KloudInstance {
 
         backend.start()
 
-        // add shutdown hook to close resources
-        Runtime.getRuntime().addShutdownHook(Thread {
-            // TODO: delete all servers
-            redis.redisAdapter.close()
-        })
-
-        while (true) {
-            val input = readLine()
-            if (input == null) continue
-
-            when (input.split(" ").firstOrNull()?.lowercase()) {
-                "exit", "quit" -> {
-                    println("Exiting Kloud instance...")
-                    break
+        suspendCancellableCoroutine { continuation ->
+            Runtime.getRuntime().addShutdownHook(Thread {
+                redis.redisAdapter.close()
+                continuation.resume(Unit) { cause, _, _ ->
+                    logger.info("Server shutdown due to: $cause")
                 }
-                "start" -> {
-                    val templateName = input.split(" ").getOrNull(1)
-                    if (templateName != null) {
-                        val templateToStart = template.getTemplate(templateName)
-                        if (templateToStart != null) {
-                            serverManager.createServer(templateToStart)
-                        } else {
-                            println("Template '$templateName' not found.")
-                        }
-                    } else {
-                        println("Please provide a template name to start.")
-                    }
-                }
-            }
+            })
         }
     }
 }

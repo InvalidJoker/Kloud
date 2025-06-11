@@ -29,7 +29,5 @@ service ServerService {
   rpc UpdateServer(UpdateServerRequest) returns (generic.v1.GenericResponse);
 
   rpc StopServer(generic.v1.GenericIdentification) returns (generic.v1.GenericResponse);
-  rpc StartServer(generic.v1.GenericIdentification) returns (generic.v1.GenericResponse);
   rpc RestartServer(generic.v1.GenericIdentification) returns (generic.v1.GenericResponse);
-  rpc DeleteServer(generic.v1.GenericIdentification) returns (generic.v1.GenericResponse);
 }

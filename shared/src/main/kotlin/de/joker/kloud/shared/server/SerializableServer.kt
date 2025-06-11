@@ -9,7 +9,5 @@ data class SerializableServer(
     val serverName: String,
     val template: Template,
     var serverData: ServerData,
-    val connectionPort: Int,
-    val type: ServerType,
-    val lobby: Boolean = false,
+    val connectionPort: Int
 )

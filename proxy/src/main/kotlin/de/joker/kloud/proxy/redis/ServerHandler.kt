@@ -36,7 +36,7 @@ class ServerHandler: RedisHandler {
                     return
                 }
 
-                if (server.type != ServerType.PROXIED_SERVER) return
+                if (server.template.type != ServerType.PROXIED_SERVER) return
 
                 val proxyServer: ProxyServer by inject(ProxyServer::class.java)
 

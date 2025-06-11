@@ -1,5 +1,6 @@
 package de.joker.kloud.shared.redis
 
+import de.joker.kloud.shared.InternalApi
 import de.joker.kloud.shared.server.SerializableServer
 import de.joker.kloud.shared.events.IEvent
 import de.joker.kloud.shared.utils.logger
@@ -34,6 +35,7 @@ abstract class RedisWrapper(
         }
     }
 
+    @InternalApi
     fun saveServer(server: SerializableServer): Boolean {
         return try {
             val json = globalJson.encodeToString(server)
@@ -45,6 +47,7 @@ abstract class RedisWrapper(
         }
     }
 
+    @InternalApi
     fun removeServer(containerId: String): Boolean {
         return try {
             redisAdapter.removeFromHash("servers", containerId)
@@ -56,7 +59,7 @@ abstract class RedisWrapper(
     }
 
     fun getLobbyServers(): List<SerializableServer> {
-        return getAllServers().filter { it.lobby }
+        return getAllServers().filter { it.template.lobby }
     }
 
     fun publishEvent(channel: String, event: IEvent): Boolean {

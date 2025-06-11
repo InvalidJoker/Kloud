@@ -53,6 +53,25 @@ class ServerService: ServerServiceGrpcKt.ServerServiceCoroutineImplBase() {
     }
 
     override suspend fun updateServer(request: UpdateServerRequest): GenericResponse {
+        val serverManager: ServerManager by inject(ServerManager::class.java)
+
+        val privateGame = if (request.privateGameDataOrNull != null) {
+            PrivateGame(
+                UUID.fromString(request.privateGameData.hostUuid)
+            )
+        } else {
+            null
+        }
+
+        val data = ServerData(
+            privateGame = privateGame,
+            extraData = request.extraDataMap.toMap(),
+        )
+
+        serverManager.updateServer(
+            request.id,
+            data
+        )
         return GenericResponse.newBuilder().build()
     }
 }

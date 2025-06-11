@@ -54,10 +54,12 @@ class RedisCalls(
             }
         }
 
-        redisScope.launch {
-            jedisPool.resource.use { jedis ->
-                jedis.subscribe(jedisPubSub, *channels.map { it.channel }.toTypedArray())
-            }
+       if (channels.isNotEmpty()) {
+           redisScope.launch {
+               jedisPool.resource.use { jedis ->
+                   jedis.subscribe(jedisPubSub, *channels.map { it.channel }.toTypedArray())
+               }
+           }
         }
 
         logger.info("Redis client initialized successfully.")

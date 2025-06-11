@@ -14,4 +14,6 @@
     <logger name="com.github.dockerjava" level="INFO"/>
     <logger name="c.g.d.a.c" level="INFO"/>
     <logger name="c.g.d.jaxrs" level="INFO"/>
+    <!-- default logg level for all other packages -->
+    <logger level="INFO"/>
 </configuration>

@@ -17,7 +17,7 @@ class CloudBackend: KoinComponent {
         return ServerBuilder.forPort(Config.backendPort)
             .addService(TemplatesService())
             .addService(ServerService())
-            .intercept(AuthInterceptor("fortnite-secret"))
+            .intercept(AuthInterceptor(Config.apiToken))
             .build()
     }
 

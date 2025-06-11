@@ -3,11 +3,13 @@ package de.joker.kloud.master.core
 import de.joker.kloud.master.docker.DockerIntegration
 import de.joker.kloud.master.redis.RedisConnector
 import de.joker.kloud.master.template.TemplateManager
+import de.joker.kloud.shared.InternalApi
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.events.ServerUpdateStateEvent
 import de.joker.kloud.shared.redis.RedisNames
 import de.joker.kloud.shared.server.SerializableServer
 import de.joker.kloud.shared.server.ServerData
+import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.templates.Template
 import de.joker.kloud.shared.utils.logger
 import kotlinx.coroutines.CoroutineScope
@@ -20,6 +22,7 @@ import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
+@OptIn(InternalApi::class)
 class ServerManager : KoinComponent {
     val serverQueue = mutableMapOf<Template, Int>()
     val serverIds = mutableMapOf<String, Int>()
@@ -30,6 +33,7 @@ class ServerManager : KoinComponent {
         serverQueue.clear()
         serverIds.clear()
         cleanupCurrent()
+
         shutdownChecker()
 
 
@@ -48,6 +52,7 @@ class ServerManager : KoinComponent {
         val docker: DockerIntegration by inject()
         val containers = docker.getContainers()
         val templateManager: TemplateManager by inject()
+        val redis: RedisConnector by inject()
 
         containers.forEach { container ->
             if (container.node?.labels?.containsKey("kloud-template") == true) {
@@ -66,14 +71,12 @@ class ServerManager : KoinComponent {
                     }
                 } catch (e: Exception) {
                     logger.error("Failed to cleanup server ${container.name} (${container.id}): ${e.message}")
-                    // Emit an event that the server is gone, even if it failed to stop
-                    val redis: RedisConnector by inject()
-                    val stoppedEvent = ServerUpdateStateEvent(
-                        container.id,
-                        ServerState.GONE,
-                    )
-                    redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
                 }
+                val stoppedEvent = ServerUpdateStateEvent(
+                    container.id,
+                    ServerState.GONE,
+                )
+                redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
             }
         }
 
@@ -85,6 +88,70 @@ class ServerManager : KoinComponent {
         }
     }
 
+    fun restartServer(
+        id: String
+    ) {
+        scope.launch {
+            val docker: DockerIntegration by inject()
+            val redis: RedisConnector by inject()
+            val server = redis.getServer(id) ?: return@launch
+
+            logger.info("Restarting server: ${server.serverName}")
+
+            docker.stopContainerInBackground(id) {
+                docker.deleteContainerInBackground(id, true) {
+                    scope.launch {
+                        createServer(server.template, server.serverData)?.let { newId ->
+                            val restartedEvent = ServerUpdateStateEvent(
+                                newId,
+                                ServerState.STARTING
+                            )
+                            redis.publishEvent(RedisNames.SERVERS, restartedEvent)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun updateServer(
+        id: String,
+        serverData: ServerData
+    ) {
+        scope.launch {
+            val redis: RedisConnector by inject()
+            val server = redis.getServer(id) ?: return@launch
+
+            logger.info("Updating server: ${server.serverName}")
+
+            // Update the server data in Redis
+            server.serverData = serverData
+            redis.saveServer(server)
+        }
+    }
+
+    fun stopServer(
+        id: String
+    ) {
+        scope.launch {
+            val docker: DockerIntegration by inject()
+            val redis: RedisConnector by inject()
+            val server = redis.getServer(id) ?: return@launch
+
+            logger.info("Stopping server: ${server.serverName}")
+
+            docker.stopContainerInBackground(id) {
+                docker.deleteContainerInBackground(id, true) {
+                    redis.removeServer(id)
+                    val stoppedEvent = ServerUpdateStateEvent(
+                        id,
+                        ServerState.GONE
+                    )
+                    redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
+                }
+            }
+        }
+    }
 
     suspend fun createServer(
         template: Template,
@@ -115,12 +182,10 @@ class ServerManager : KoinComponent {
 
                 val serializableServer = SerializableServer(
                     id = res.id,
-                    templateName = template.name,
+                    template = template,
                     serverName = containerName,
                     serverData = serverData,
-                    connectionPort = port,
-                    template.type,
-                    template.lobby,
+                    connectionPort = port
                 )
                 redis.saveServer(serializableServer)
                 cont.resume(res.id)
@@ -142,15 +207,11 @@ class ServerManager : KoinComponent {
                 servers.forEach { server ->
                     val state = docker.getContainerState(server.id)
 
-                    if (state == null || state.running == false) {
-                        logger.warn("Server ${server.serverName} (${server.templateName}) is not running, removing from Redis.")
+                    if (state == null || (state.running == false && state.restarting == false)) {
+                        logger.warn("Server ${server.serverName} is not running, removing from Redis.")
                         redis.removeServer(server.id)
 
-
-                        val template = templateManager.getTemplate(server.templateName)
-                            ?: throw IllegalStateException("Template ${server.templateName} not found for server ${server.serverName}")
-
-                        if (template.dynamic != null) {
+                        if (server.template.dynamic != null) {
                             docker.deleteContainerInBackground(server.id, true)
                         }
 
@@ -164,8 +225,9 @@ class ServerManager : KoinComponent {
                 }
 
                 val templates = templateManager.listTemplates()
+                    .sortedWith(compareByDescending { it.type == ServerType.PROXY })
                 templates.filter { it.dynamic != null }.forEach { template ->
-                    val runningServers = servers.count { it.templateName == template.name && docker.getContainerState(it.id)?.running == true }
+                    val runningServers = servers.count { it.template.name == template.name && docker.getContainerState(it.id)?.running == true }
                     val queuedServers = serverQueue[template] ?: 0
 
                     val minServers = template.dynamic?.minServers ?: 0
