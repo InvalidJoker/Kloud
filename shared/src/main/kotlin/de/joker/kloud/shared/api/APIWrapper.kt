@@ -8,7 +8,7 @@ import build.buf.gen.templates.v1.TemplateServiceGrpcKt
 import de.joker.kloud.shared.templates.Template
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
-import java.util.UUID
+import java.util.*
 
 class APIWrapper(
     private val host: String,
@@ -18,11 +18,16 @@ class APIWrapper(
     private fun createControllerChannel(): ManagedChannel {
         return ManagedChannelBuilder.forAddress(host, port).usePlaintext().build()
     }
-    private val serverCaller = ServerServiceGrpcKt.ServerServiceCoroutineStub(createControllerChannel()).withCallCredentials(
-        AuthCallCredentials(token))
 
-    private val templateCaller = TemplateServiceGrpcKt.TemplateServiceCoroutineStub(createControllerChannel()).withCallCredentials(
-        AuthCallCredentials(token))
+    private val serverCaller =
+        ServerServiceGrpcKt.ServerServiceCoroutineStub(createControllerChannel()).withCallCredentials(
+            AuthCallCredentials(token)
+        )
+
+    private val templateCaller =
+        TemplateServiceGrpcKt.TemplateServiceCoroutineStub(createControllerChannel()).withCallCredentials(
+            AuthCallCredentials(token)
+        )
 
     suspend fun getTemplates(): List<Template> {
         val templates = templateCaller.listTemplates(GenericRequest.getDefaultInstance())

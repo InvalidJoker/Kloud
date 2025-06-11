@@ -1,10 +1,6 @@
 package de.joker.kloud.master.backend.auth
 
-import io.grpc.Metadata
-import io.grpc.ServerCall
-import io.grpc.ServerCallHandler
-import io.grpc.ServerInterceptor
-import io.grpc.Status
+import io.grpc.*
 import kotlinx.coroutines.runBlocking
 
 class AuthInterceptor(

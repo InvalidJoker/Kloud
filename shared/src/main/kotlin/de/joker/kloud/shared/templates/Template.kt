@@ -1,8 +1,8 @@
 package de.joker.kloud.shared.templates
 
-import build.buf.gen.templates.v1.Template as ProtoTemplate
 import de.joker.kloud.shared.server.ServerType
 import kotlinx.serialization.Serializable
+import build.buf.gen.templates.v1.Template as ProtoTemplate
 
 @Serializable
 data class Template(
@@ -32,9 +32,7 @@ data class Template(
             .addAllRequiredPermissions(requiredPermissions)
             .apply {
                 this@Template.dynamic?.let {
-                    setDynamic(
-                        it.toProto()
-                    )
+                    dynamic = it.toProto()
                 }
             }
             .build()
@@ -58,20 +56,5 @@ data class Template(
                 } else null
             )
         }
-    }
-}
-
-@Serializable
-data class DynamicTemplate(
-    val minServers: Int,
-    val maxServers: Int,
-    val extraDirectories: List<String> = emptyList(),
-) {
-    fun toProto(): build.buf.gen.templates.v1.DynamicTemplate {
-        return build.buf.gen.templates.v1.DynamicTemplate.newBuilder()
-            .setMinServers(minServers)
-            .setMaxServers(maxServers)
-            .addAllExtraDirectories(extraDirectories)
-            .build()
     }
 }

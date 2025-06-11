@@ -30,7 +30,8 @@ object DockerUtils {
 
         // Check ports around 25565, alternating above and below
         for (offset in 0..range) {
-            val candidates = listOf(targetPort + offset, targetPort - offset).distinct().filter { it in 1024..65535 && !portsFound.contains(it) }
+            val candidates = listOf(targetPort + offset, targetPort - offset).distinct()
+                .filter { it in 1024..65535 && !portsFound.contains(it) }
             for (port in candidates) {
                 try {
                     ServerSocket(port).use {

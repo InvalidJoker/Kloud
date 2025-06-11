@@ -2,11 +2,7 @@ package de.joker.kloud.master.backend.services
 
 import build.buf.gen.generic.v1.GenericIdentification
 import build.buf.gen.generic.v1.GenericResponse
-import build.buf.gen.server.v1.CreateServerRequest
-import build.buf.gen.server.v1.ServerCreateResponse
-import build.buf.gen.server.v1.ServerServiceGrpcKt
-import build.buf.gen.server.v1.UpdateServerRequest
-import build.buf.gen.server.v1.privateGameDataOrNull
+import build.buf.gen.server.v1.*
 import de.joker.kloud.master.core.ServerManager
 import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.shared.server.PrivateGame
@@ -14,9 +10,9 @@ import de.joker.kloud.shared.server.ServerData
 import io.grpc.Status
 import io.grpc.StatusException
 import org.koin.java.KoinJavaComponent.inject
-import java.util.UUID
+import java.util.*
 
-class ServerService: ServerServiceGrpcKt.ServerServiceCoroutineImplBase() {
+class ServerService : ServerServiceGrpcKt.ServerServiceCoroutineImplBase() {
     override suspend fun createServer(request: CreateServerRequest): ServerCreateResponse {
 
         val serverManager: ServerManager by inject(ServerManager::class.java)

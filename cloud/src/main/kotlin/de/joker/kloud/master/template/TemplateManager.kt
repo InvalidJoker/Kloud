@@ -1,8 +1,8 @@
 package de.joker.kloud.master.template
 
+import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.templates.DynamicTemplate
 import de.joker.kloud.shared.templates.Template
-import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.utils.logger
 import dev.fruxz.ascend.json.globalJson
 import kotlinx.serialization.builtins.ListSerializer
@@ -11,10 +11,10 @@ import java.io.File
 import kotlin.system.exitProcess
 
 
-class TemplateManager : KoinComponent{
+class TemplateManager : KoinComponent {
     private val templates = mutableMapOf<String, Template>()
 
-    fun addTemplate(template: Template) {
+    private fun addTemplate(template: Template) {
         templates[template.name] = template
     }
 
@@ -22,7 +22,7 @@ class TemplateManager : KoinComponent{
         return templates[name]
     }
 
-    fun removeTemplate(name: String) {
+    private fun removeTemplate(name: String) {
         templates.remove(name)
     }
 
@@ -85,7 +85,7 @@ class TemplateManager : KoinComponent{
             logger.warn("Templates file not found: ${file.absolutePath}. Created default templates: 'proxy' and 'lobby'.")
         }
 
-        templates.forEach { (name, template) ->
+        templates.forEach { (name, _) ->
             val dir = File("templates/$name")
             if (!dir.exists()) {
                 dir.mkdirs()

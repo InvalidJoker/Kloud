@@ -36,6 +36,10 @@ import java.io.File
 class DockerIntegration : KoinComponent {
     lateinit var dockerClient: DockerClient
 
+    val redis: RedisConnector by inject()
+    val secretManager: SecretManager by inject()
+    val templates: TemplateManager by inject()
+
     val scope = CoroutineScope(Dispatchers.IO)
 
     fun loadDockerClient() {
@@ -58,8 +62,6 @@ class DockerIntegration : KoinComponent {
 
         logger.info("Docker client initialized successfully.")
 
-        val templateManager: TemplateManager by inject()
-
         val kCloudNetwork = dockerClient.listNetworksCmd()
             .withNameFilter("kcloud_network")
             .exec()
@@ -75,7 +77,7 @@ class DockerIntegration : KoinComponent {
             logger.info("kcloud_network already exists.")
         }
 
-        templateManager.listTemplates().forEach {
+        templates.listTemplates().forEach {
             val success = DockerUtils.pullImage(dockerClient, it.image)
             if (success) {
                 logger.info("Image ${it.image} pulled successfully.")
@@ -84,6 +86,14 @@ class DockerIntegration : KoinComponent {
             }
         }
 
+    }
+
+    @Synchronized
+    fun ensureVolumeExists(name: String) {
+        if (!dockerClient.listVolumesCmd().exec().volumes.any { it.name == name }) {
+            dockerClient.createVolumeCmd().withName(name).exec()
+            logger.info("Created volume: $name")
+        }
     }
 
     fun startContainerInBackground(containerId: String, onStarted: (() -> Unit)? = null) {
@@ -141,6 +151,7 @@ class DockerIntegration : KoinComponent {
 
     fun restartContainerBlocking(containerId: String, onRestarted: (() -> Unit)? = null) {
         dockerClient.restartContainerCmd(containerId).exec()
+        onRestarted?.invoke()
     }
 
     fun getContainerState(containerId: String): InspectContainerResponse.ContainerState? {
@@ -151,6 +162,7 @@ class DockerIntegration : KoinComponent {
             null
         }
     }
+
     fun getContainers(): List<InspectContainerResponse> {
         return dockerClient.listContainersCmd()
             .withShowAll(true)
@@ -189,8 +201,6 @@ class DockerIntegration : KoinComponent {
                 current.putAll(paperGlobal)
             }
         }
-
-        val secretManager: SecretManager by inject()
 
         current["proxies"] = mapOf(
             "bungee-cord" to mapOf(
@@ -236,9 +246,8 @@ class DockerIntegration : KoinComponent {
         serverName: String,
         onFinished: ((container: CreateContainerResponse, port: Int) -> Unit)? = null
     ) {
-        val redis: RedisConnector by inject()
-        val free = DockerUtils.findClosestPortTo25565() ?: throw IllegalStateException("No free port found for container ${template.name}")
-        val secretManager: SecretManager by inject()
+        val free = DockerUtils.findClosestPortTo25565()
+            ?: throw IllegalStateException("No free port found for container ${template.name}")
 
         val ports = mapOf( // TODO: make this dynamic
             free to 25565
@@ -255,12 +264,14 @@ class DockerIntegration : KoinComponent {
         val fullEnv = template.environment.toMutableMap().apply {
             putIfAbsent("KLOUD_TEMPLATE", template.name)
             putIfAbsent("EULA", "TRUE")
+            putIfAbsent("ENABLE_RCON", "false")
             putIfAbsent("KLOUD_SERVER_NAME", serverName)
             putIfAbsent("KLOUD_SERVER_PORT", free.toString())
             putIfAbsent("KLOUD_REDIS_HOST", redisHost)
             putIfAbsent("KLOUD_REDIS_PORT", Config.redisPort.toString())
             putIfAbsent("KLOUD_API_TOKEN", Config.apiToken)
             putIfAbsent("KLOUD_API_PORT", Config.backendPort.toString())
+
         }
 
         if (template.type == ServerType.PROXIED_SERVER) {
@@ -311,14 +322,7 @@ class DockerIntegration : KoinComponent {
             }
 
             // Create volume if it doesn't exist
-            if (!dockerClient.listVolumesCmd().exec().volumes.any { it.name == volumeName }) {
-                dockerClient.createVolumeCmd()
-                    .withName(volumeName)
-                    .exec()
-                logger.info("Created volume: $volumeName")
-            } else {
-                logger.info("Volume already exists: $volumeName")
-            }
+            ensureVolumeExists(volumeName)
 
             val volume = Volume(dataLocation)
             bind = Bind(dir.absolutePath, volume)

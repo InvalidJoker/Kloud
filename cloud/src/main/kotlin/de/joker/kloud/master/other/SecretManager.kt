@@ -4,7 +4,7 @@ import org.koin.core.component.KoinComponent
 import java.io.File
 import java.security.SecureRandom
 
-class SecretManager: KoinComponent {
+class SecretManager : KoinComponent {
     fun loadSecrets(): String {
         val home = System.getProperty("user.home")
         val secretsFile = "$home/.kloud/forwarding.secret"

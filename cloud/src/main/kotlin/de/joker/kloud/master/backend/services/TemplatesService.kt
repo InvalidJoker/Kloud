@@ -6,7 +6,7 @@ import build.buf.gen.templates.v1.TemplateServiceGrpcKt
 import de.joker.kloud.master.template.TemplateManager
 import org.koin.java.KoinJavaComponent.inject
 
-class TemplatesService: TemplateServiceGrpcKt.TemplateServiceCoroutineImplBase() {
+class TemplatesService : TemplateServiceGrpcKt.TemplateServiceCoroutineImplBase() {
     override suspend fun listTemplates(request: GenericRequest): TemplateList {
         val manager: TemplateManager by inject(TemplateManager::class.java)
 

@@ -12,7 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 
-class CloudBackend: KoinComponent {
+class CloudBackend : KoinComponent {
     private fun createGrpcServer(): Server {
         return ServerBuilder.forPort(Config.backendPort)
             .addService(TemplatesService())

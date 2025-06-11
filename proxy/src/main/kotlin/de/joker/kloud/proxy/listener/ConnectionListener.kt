@@ -8,7 +8,7 @@ import de.joker.kloud.shared.utils.logger
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-class ConnectionListener: KoinComponent {
+class ConnectionListener : KoinComponent {
 
     @Subscribe
     fun onPlayerChooseInitialServer(event: PlayerChooseInitialServerEvent) {

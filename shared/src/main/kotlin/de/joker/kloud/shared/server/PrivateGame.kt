@@ -1,8 +1,8 @@
 package de.joker.kloud.shared.server
 
 import dev.fruxz.ascend.json.serializer.UUIDSerializer
-import java.util.UUID
 import kotlinx.serialization.Serializable
+import java.util.*
 
 @Serializable
 data class PrivateGame(

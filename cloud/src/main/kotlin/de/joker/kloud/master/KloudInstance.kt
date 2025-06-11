@@ -6,6 +6,8 @@ import de.joker.kloud.master.docker.DockerIntegration
 import de.joker.kloud.master.other.SecretManager
 import de.joker.kloud.master.redis.RedisConnector
 import de.joker.kloud.master.template.TemplateManager
+import de.joker.kloud.shared.events.CloudStoppedEvent
+import de.joker.kloud.shared.redis.RedisNames
 import de.joker.kloud.shared.utils.logger
 import dev.fruxz.ascend.json.globalJson
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -17,44 +19,25 @@ import org.koin.logger.slf4jLogger
 
 object KloudInstance {
 
-    val dockerModule = module {
-        single { DockerIntegration() }
-    }
-
-    val redisModule = module {
-        single { RedisConnector() }
-    }
-
-    val templateModule = module {
-        single { TemplateManager() }
-    }
-
-    val serverModule = module {
-        single { ServerManager() }
-    }
-
-    val secretModule = module {
-        single { SecretManager() }
-    }
-
-    val backendModule = module {
-        single { CloudBackend() }
-    }
+    private val kloudModules = listOf(
+        module { single { DockerIntegration() } },
+        module { single { RedisConnector() } },
+        module { single { TemplateManager() } },
+        module { single { ServerManager() } },
+        module { single { SecretManager() } },
+        module { single { CloudBackend() } },
+        module { single { globalJson } },
+    )
 
     @OptIn(InternalSerializationApi::class)
     suspend fun start() {
         startKoin {
             slf4jLogger()
             modules(
-                dockerModule,
-                redisModule,
-                templateModule,
-                serverModule,
-                secretModule,
-                backendModule,
-                module {
-                    single { globalJson }
-                }
+                kloudModules +
+                        module {
+                            single { globalJson }
+                        }
             )
         }
 
@@ -78,7 +61,8 @@ object KloudInstance {
 
         suspendCancellableCoroutine { continuation ->
             Runtime.getRuntime().addShutdownHook(Thread {
-                redis.redisAdapter.close()
+                redis.publishEvent(RedisNames.CLOUD, CloudStoppedEvent())
+                serverManager.cleanupCurrent()
                 continuation.resume(Unit) { cause, _, _ ->
                     logger.info("Server shutdown due to: $cause")
                 }

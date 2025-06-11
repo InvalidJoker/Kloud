@@ -8,10 +8,9 @@ import de.joker.kloud.shared.utils.logger
 import dev.fruxz.stacked.text
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import kotlin.getValue
 import kotlin.jvm.optionals.getOrNull
 
-class KickListener: KoinComponent {
+class KickListener : KoinComponent {
 
     @Subscribe
     fun onKickedFromServer(event: KickedFromServerEvent) {

@@ -2,12 +2,12 @@ package de.joker.kloud.proxy.redis
 
 import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.server.ServerInfo
-import de.joker.kloud.shared.redis.RedisHandler
-import de.joker.kloud.shared.server.SerializableServer
-import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.events.IEvent
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.events.ServerUpdateStateEvent
+import de.joker.kloud.shared.redis.RedisHandler
+import de.joker.kloud.shared.server.SerializableServer
+import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.utils.logger
 import org.koin.java.KoinJavaComponent.inject
 import java.net.InetSocketAddress
@@ -22,7 +22,7 @@ val SerializableServer.serverInfo: ServerInfo?
 
     )
 
-class ServerHandler: RedisHandler {
+class ServerHandler : RedisHandler {
     override val channel = "servers"
 
     override fun handleEvent(event: IEvent) {
@@ -44,6 +44,7 @@ class ServerHandler: RedisHandler {
                     ServerState.RUNNING -> {
                         proxyServer.registerServer(server.serverInfo)
                     }
+
                     ServerState.STOPPING -> {
                         val serverInfo = proxyServer.getServer(server.serverName)
                         if (serverInfo != null && serverInfo.isPresent) {
@@ -52,9 +53,11 @@ class ServerHandler: RedisHandler {
                             logger.warn("Server ${server.serverName} not found in proxy.")
                         }
                     }
+
                     else -> {}
                 }
             }
+
             else -> {}
         }
     }

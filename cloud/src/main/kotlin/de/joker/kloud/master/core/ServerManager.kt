@@ -4,6 +4,7 @@ import de.joker.kloud.master.docker.DockerIntegration
 import de.joker.kloud.master.redis.RedisConnector
 import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.shared.InternalApi
+import de.joker.kloud.shared.events.CloudStartedEvent
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.events.ServerUpdateStateEvent
 import de.joker.kloud.shared.redis.RedisNames
@@ -12,10 +13,7 @@ import de.joker.kloud.shared.server.ServerData
 import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.templates.Template
 import de.joker.kloud.shared.utils.logger
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.io.File
@@ -26,38 +24,43 @@ import kotlin.coroutines.suspendCoroutine
 class ServerManager : KoinComponent {
     val serverQueue = mutableMapOf<Template, Int>()
     val serverIds = mutableMapOf<String, Int>()
-    val scope = CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+    val scope = CoroutineScope(Dispatchers.IO)
+    val redis: RedisConnector by inject()
+    val docker: DockerIntegration by inject()
+    val templates: TemplateManager by inject()
+
+
     lateinit var shutdownJob: Job
 
     fun startup() {
+        clearState()
+        launchShutdownMonitor()
+        launchStaticServers()
+
+        redis.publishEvent(RedisNames.CLOUD, CloudStartedEvent())
+    }
+
+
+    private fun clearState() {
         serverQueue.clear()
         serverIds.clear()
         cleanupCurrent()
+    }
 
-        shutdownChecker()
-
-
-        val templateManager: TemplateManager by inject()
-
-        val static = templateManager.listTemplates().filter { it.dynamic == null }
-
-        CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            static.forEach { template ->
-                createServer(template, ServerData())
-            }
+    private fun launchStaticServers() {
+        val static = templates.listTemplates().filter { it.dynamic == null }
+        scope.launch {
+            static.forEach { template -> createServer(template, ServerData()) }
         }
     }
 
     fun cleanupCurrent() {
-        val docker: DockerIntegration by inject()
         val containers = docker.getContainers()
-        val templateManager: TemplateManager by inject()
-        val redis: RedisConnector by inject()
 
         containers.forEach { container ->
             if (container.node?.labels?.containsKey("kloud-template") == true) {
                 val templateName = container.node.labels["kloud-template"] ?: return@forEach
-                val template = templateManager.getTemplate(templateName) ?: return@forEach
+                val template = templates.getTemplate(templateName) ?: return@forEach
 
                 try {
                     if (template.dynamic == null) {
@@ -91,8 +94,6 @@ class ServerManager : KoinComponent {
     fun restartServer(
         id: String
     ): Boolean {
-        val docker: DockerIntegration by inject()
-        val redis: RedisConnector by inject()
         val server = redis.getServer(id) ?: return false
 
         logger.info("Restarting server: ${server.serverName}")
@@ -119,7 +120,6 @@ class ServerManager : KoinComponent {
         id: String,
         serverData: ServerData
     ): Boolean {
-        val redis: RedisConnector by inject()
         val server = redis.getServer(id) ?: return false
 
         logger.info("Updating server: ${server.serverName}")
@@ -135,8 +135,6 @@ class ServerManager : KoinComponent {
     fun stopServer(
         id: String
     ): Boolean {
-        val docker: DockerIntegration by inject()
-        val redis: RedisConnector by inject()
         val server = redis.getServer(id) ?: return false
 
         logger.info("Stopping server: ${server.serverName}")
@@ -162,8 +160,7 @@ class ServerManager : KoinComponent {
     ): String? = suspendCoroutine { cont ->
         serverQueue[template] = serverQueue.getOrDefault(template, 0) + 1
         println("Creating server for template: ${template.name}")
-        val redis: RedisConnector by inject()
-        val docker: DockerIntegration by inject()
+
 
         val containerName = if (template.dynamic != null) {
             val ids = serverIds[template.name] ?: 1
@@ -198,51 +195,54 @@ class ServerManager : KoinComponent {
         }
     }
 
-    fun shutdownChecker() {
-        val docker: DockerIntegration by inject()
-        val redis: RedisConnector by inject()
-        val templateManager: TemplateManager by inject()
-
+    fun launchShutdownMonitor() {
         shutdownJob = scope.launch {
             while (true) {
-                val servers = redis.getAllServers()
+                checkDeadServers()
+                ensureMinDynamicServers()
+                delay(60_000)
+            }
+        }
+    }
 
-                servers.forEach { server ->
-                    val state = docker.getContainerState(server.id)
+    private fun checkDeadServers() {
+        val servers = redis.getAllServers()
 
-                    if (state == null || (state.running == false && state.restarting == false)) {
-                        logger.warn("Server ${server.serverName} is not running, removing from Redis.")
-                        redis.removeServer(server.id)
+        servers.forEach { server ->
+            val state = docker.getContainerState(server.id)
+            val notRunning = state == null || (state.running == false && state.restarting == false)
 
-                        if (server.template.dynamic != null) {
-                            docker.deleteContainerInBackground(server.id, true)
-                        }
+            if (notRunning) {
+                logger.warn("Removing non-running server: ${server.serverName}")
+                redis.removeServer(server.id)
 
-                        val stoppedEvent = ServerUpdateStateEvent(
-                            server.id,
-                            ServerState.GONE,
-                        )
+                val force = server.template.dynamic != null
 
-                        redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
-                    }
+                runCatching {
+                    docker.deleteContainerInBackground(server.id, force)
+                }.onFailure { e ->
+                    logger.error("Failed to delete server container ${server.serverName} (${server.id}): ${e.message}")
                 }
+                redis.publishEvent(RedisNames.SERVERS, ServerUpdateStateEvent(server.id, ServerState.GONE))
+            }
+        }
+    }
 
-                val templates = templateManager.listTemplates()
-                    .sortedWith(compareByDescending { it.type == ServerType.PROXY })
-                templates.filter { it.dynamic != null }.forEach { template ->
-                    val runningServers = servers.count { it.template.name == template.name && docker.getContainerState(it.id)?.running == true }
-                    val queuedServers = serverQueue[template] ?: 0
+    private suspend fun ensureMinDynamicServers() {
+        val servers = redis.getAllServers()
+        val sortedTemplates = templates.listTemplates().sortedByDescending { it.type == ServerType.PROXY }
 
-                    val minServers = template.dynamic?.minServers ?: 0
+        sortedTemplates.filter { it.dynamic != null }.forEach { template ->
+            val running = servers.count {
+                it.template.name == template.name && docker.getContainerState(it.id)?.running == true
+            }
+            val queued = serverQueue[template] ?: 0
+            val min = template.dynamic?.minServers ?: 0
 
-                    if (runningServers + queuedServers < minServers) {
-                        repeat(minServers - runningServers) {
-                            createServer(template, ServerData())
-                        }
-                    }
+            if (running + queued < min) {
+                repeat(min - running - queued) {
+                    createServer(template, ServerData())
                 }
-
-                delay(60000)
             }
         }
     }

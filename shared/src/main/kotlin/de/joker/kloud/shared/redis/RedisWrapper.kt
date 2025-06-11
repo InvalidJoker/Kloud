@@ -1,8 +1,8 @@
 package de.joker.kloud.shared.redis
 
 import de.joker.kloud.shared.InternalApi
-import de.joker.kloud.shared.server.SerializableServer
 import de.joker.kloud.shared.events.IEvent
+import de.joker.kloud.shared.server.SerializableServer
 import de.joker.kloud.shared.utils.logger
 import dev.fruxz.ascend.json.globalJson
 
