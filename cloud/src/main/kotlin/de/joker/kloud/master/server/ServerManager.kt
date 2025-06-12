@@ -1,4 +1,4 @@
-package de.joker.kloud.master.core
+package de.joker.kloud.master.server
 
 import de.joker.kloud.master.docker.DockerIntegration
 import de.joker.kloud.master.redis.RedisConnector
@@ -93,6 +93,12 @@ class ServerManager : KoinComponent {
         logger.info("Restarting server: ${server.serverName}")
 
         docker.stopContainerInBackground(server.containerId) {
+            redis.removeServer(id)
+            val stoppedEvent = ServerUpdateStateEvent(
+                server,
+                ServerState.GONE
+            )
+            redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
             scope.launch {
                 createServer(server.template, server.serverData)
             }
@@ -146,6 +152,10 @@ class ServerManager : KoinComponent {
         println("Creating server for template: ${template.name}")
 
         val id = UUID.randomUUID().toString()
+
+        if (template.dynamic == null && redis.getServerByInternal(id) != null) {
+            throw IllegalStateException("Server with ID $id already exists for static template ${template.name}.")
+        }
 
         val containerName = if (template.dynamic != null) {
             val ids = serverIds[template.name] ?: 1
@@ -233,7 +243,7 @@ class ServerManager : KoinComponent {
         }
     }
 
-    private suspend fun ensureMinDynamicServers() {
+    private fun ensureMinDynamicServers() {
         val servers = redis.getAllServers()
         val sortedTemplates = templates.listTemplates().sortedByDescending { it.type == ServerType.PROXY }
 

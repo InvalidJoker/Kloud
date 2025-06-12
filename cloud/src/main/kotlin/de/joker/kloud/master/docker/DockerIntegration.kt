@@ -13,12 +13,9 @@ import com.github.dockerjava.okhttp.OkDockerHttpClient
 import com.moandjiezana.toml.Toml
 import com.moandjiezana.toml.TomlWriter
 import de.joker.kloud.master.Config
-import de.joker.kloud.master.other.SecretManager
+import de.joker.kloud.master.secret.SecretManager
 import de.joker.kloud.master.redis.RedisConnector
 import de.joker.kloud.master.template.TemplateManager
-import de.joker.kloud.shared.events.ServerState
-import de.joker.kloud.shared.events.ServerUpdateStateEvent
-import de.joker.kloud.shared.redis.RedisNames
 import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.templates.Template
 import de.joker.kloud.shared.utils.logger

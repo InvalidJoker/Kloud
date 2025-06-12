@@ -1,4 +1,4 @@
-package de.joker.kloud.master.other
+package de.joker.kloud.master.secret
 
 import org.koin.core.component.KoinComponent
 import java.io.File
