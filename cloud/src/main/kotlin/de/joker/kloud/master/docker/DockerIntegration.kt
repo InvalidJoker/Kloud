@@ -59,19 +59,19 @@ class DockerIntegration : KoinComponent {
 
         logger.info("Docker client initialized successfully.")
 
-        val kCloudNetwork = dockerClient.listNetworksCmd()
-            .withNameFilter("kcloud_network")
+        val kloudNetwork = dockerClient.listNetworksCmd()
+            .withNameFilter("kloud_network")
             .exec()
             .firstOrNull()
 
-        if (kCloudNetwork == null) {
+        if (kloudNetwork == null) {
             dockerClient.createNetworkCmd()
-                .withName("kcloud_network")
+                .withName("kloud_network")
                 .withDriver("bridge")
                 .exec()
-            logger.info("Created kcloud_network for containers.")
+            logger.info("Created kloud_network for containers.")
         } else {
-            logger.info("kcloud_network already exists.")
+            logger.info("kloud_network already exists.")
         }
 
         templates.listTemplates().forEach {
@@ -288,13 +288,22 @@ class DockerIntegration : KoinComponent {
 
                 runningDirectory.mkdirs()
 
-                // copy template files to running directory
-                val templateDir = File("./templates/${template.name}")
+                val directories = mutableListOf(
+                    template.name,
+                    "dynamic_${template.type.name.lowercase()}", // all dynamic from the same type
+                )
 
-                if (templateDir.exists()) {
-                    templateDir.copyRecursively(runningDirectory, true)
-                } else {
-                    logger.warn("Template directory ${templateDir.absolutePath} does not exist. Using running directory only.")
+                directories.addAll(template.dynamic!!.extraDirectories)
+
+                // copy template files to running directory
+                directories.forEach { dirName ->
+                    val templateDir = File("./templates/$dirName")
+
+                    if (templateDir.exists()) {
+                        templateDir.copyRecursively(runningDirectory, true)
+                    } else {
+                        templateDir.mkdirs()
+                    }
                 }
 
                 runningDirectory
@@ -358,7 +367,7 @@ class DockerIntegration : KoinComponent {
                     .withAutoRemove(true)
                     .withBinds(*binds.toTypedArray())
                     .ifTrue({ template.type != ServerType.STANDALONE_SERVER }) { e ->
-                        e.withNetworkMode("kcloud_network")
+                        e.withNetworkMode("kloud_network")
                     }
             )
 

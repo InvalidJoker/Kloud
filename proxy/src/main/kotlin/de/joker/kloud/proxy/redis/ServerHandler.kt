@@ -9,6 +9,7 @@ import de.joker.kloud.shared.redis.RedisHandler
 import de.joker.kloud.shared.server.SerializableServer
 import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.utils.logger
+import dev.fruxz.stacked.text
 import org.koin.java.KoinJavaComponent.inject
 import java.net.InetSocketAddress
 
@@ -28,9 +29,6 @@ class ServerHandler : RedisHandler {
     override fun handleEvent(event: IEvent) {
         when (event) {
             is ServerUpdateStateEvent -> {
-                val redis: RedisSubscriber by inject(RedisSubscriber::class.java)
-
-
                 if (event.server.template.type != ServerType.PROXIED_SERVER) return
 
                 val proxyServer: ProxyServer by inject(ProxyServer::class.java)
@@ -38,6 +36,13 @@ class ServerHandler : RedisHandler {
                 when (event.state) {
                     ServerState.RUNNING -> {
                         proxyServer.registerServer(event.server.serverInfo)
+
+                        proxyServer.allPlayers.filter { player ->
+                            player.hasPermission("kloud.notify")
+                        }.forEach { player ->
+                            player.sendMessage(text("<gray>[<green>+<gray>] <white>${event.server.serverName}"))
+                        }
+
                     }
 
                     ServerState.GONE -> {
@@ -46,6 +51,12 @@ class ServerHandler : RedisHandler {
                             proxyServer.unregisterServer(serverInfo.get().serverInfo)
                         } else {
                             logger.warn("Server ${event.server.serverName} not found in proxy.")
+                        }
+
+                        proxyServer.allPlayers.filter { player ->
+                            player.hasPermission("kloud.notify")
+                        }.forEach { player ->
+                            player.sendMessage(text("<gray>[<red>-<gray>] <white>${event.server.serverName}"))
                         }
                     }
 

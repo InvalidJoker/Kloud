@@ -22,7 +22,7 @@ import org.koin.java.KoinJavaComponent.inject
 import org.koin.logger.slf4jLogger
 
 @Plugin(
-    id = "kcloud-proxy",
+    id = "kloud-proxy",
     name = "Kloud Proxy",
     version = BuildConstants.VERSION,
     authors = ["InvalidJoker"]
