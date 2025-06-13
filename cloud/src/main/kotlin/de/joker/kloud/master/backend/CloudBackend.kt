@@ -2,8 +2,8 @@ package de.joker.kloud.master.backend
 
 import de.joker.kloud.master.Config
 import de.joker.kloud.master.backend.auth.AuthInterceptor
-import de.joker.kloud.master.backend.services.ServerService
-import de.joker.kloud.master.backend.services.TemplatesService
+import de.joker.kloud.master.server.ServerService
+import de.joker.kloud.master.template.TemplatesService
 import de.joker.kloud.shared.utils.logger
 import io.grpc.Server
 import io.grpc.ServerBuilder

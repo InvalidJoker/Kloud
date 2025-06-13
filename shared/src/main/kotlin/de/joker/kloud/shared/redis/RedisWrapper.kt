@@ -4,6 +4,7 @@ import de.joker.kloud.shared.InternalApi
 import de.joker.kloud.shared.events.IEvent
 import de.joker.kloud.shared.server.SerializableServer
 import de.joker.kloud.shared.utils.logger
+import de.joker.kutils.core.tools.Environment
 import dev.fruxz.ascend.json.globalJson
 
 abstract class RedisWrapper(
@@ -24,13 +25,23 @@ abstract class RedisWrapper(
         }
     }
 
-    fun getServer(containerId: String): SerializableServer? {
+    fun getServerByInternal(internalId: String): SerializableServer? {
         return try {
-            redisAdapter.getFromHash("servers", containerId)?.let {
+            redisAdapter.getFromHash("servers", internalId)?.let {
                 globalJson.decodeFromString<SerializableServer>(it)
             }
         } catch (e: Exception) {
-            logger.error("Failed to get server with ID: $containerId", e)
+            logger.error("Failed to get server with ID: $internalId", e)
+            null
+        }
+    }
+
+    fun getServerByContainer(containerId: String): SerializableServer? {
+        return try {
+            val servers = getAllServers()
+            servers.find { it.containerId == containerId }
+        } catch (e: Exception) {
+            logger.error("Failed to get server with container ID: $containerId", e)
             null
         }
     }
@@ -39,7 +50,7 @@ abstract class RedisWrapper(
     fun saveServer(server: SerializableServer): Boolean {
         return try {
             val json = globalJson.encodeToString(server)
-            redisAdapter.addToHash("servers", server.id, json)
+            redisAdapter.addToHash("servers", server.internalId, json)
             true
         } catch (e: Exception) {
             logger.error("Failed to save server: ${server.serverName}", e)
@@ -48,18 +59,29 @@ abstract class RedisWrapper(
     }
 
     @InternalApi
-    fun removeServer(containerId: String): Boolean {
+    fun removeServer(internalId: String): Boolean {
         return try {
-            redisAdapter.removeFromHash("servers", containerId)
+            redisAdapter.removeFromHash("servers", internalId)
             true
         } catch (e: Exception) {
-            logger.error("Failed to remove server with ID: $containerId", e)
+            logger.error("Failed to remove server with ID: $internalId", e)
             false
         }
     }
 
     fun getLobbyServers(): List<SerializableServer> {
         return getAllServers().filter { it.template.lobby }
+    }
+
+    fun getSelfServer(): SerializableServer? {
+        val selfId = Environment.getString("KLOUD_ID")
+
+        return if (selfId.isNullOrBlank()) {
+            logger.warn("KLOUD_ID environment variable is not set or is empty.")
+            null
+        } else {
+            getServerByInternal(selfId)
+        }
     }
 
     fun publishEvent(channel: String, event: IEvent): Boolean {

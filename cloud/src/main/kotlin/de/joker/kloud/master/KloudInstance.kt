@@ -1,9 +1,9 @@
 package de.joker.kloud.master
 
 import de.joker.kloud.master.backend.CloudBackend
-import de.joker.kloud.master.core.ServerManager
+import de.joker.kloud.master.server.ServerManager
 import de.joker.kloud.master.docker.DockerIntegration
-import de.joker.kloud.master.other.SecretManager
+import de.joker.kloud.master.secret.SecretManager
 import de.joker.kloud.master.redis.RedisConnector
 import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.shared.events.CloudStoppedEvent

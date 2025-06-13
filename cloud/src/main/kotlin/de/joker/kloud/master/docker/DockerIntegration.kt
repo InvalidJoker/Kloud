@@ -13,12 +13,9 @@ import com.github.dockerjava.okhttp.OkDockerHttpClient
 import com.moandjiezana.toml.Toml
 import com.moandjiezana.toml.TomlWriter
 import de.joker.kloud.master.Config
-import de.joker.kloud.master.other.SecretManager
+import de.joker.kloud.master.secret.SecretManager
 import de.joker.kloud.master.redis.RedisConnector
 import de.joker.kloud.master.template.TemplateManager
-import de.joker.kloud.shared.events.ServerState
-import de.joker.kloud.shared.events.ServerUpdateStateEvent
-import de.joker.kloud.shared.redis.RedisNames
 import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.templates.Template
 import de.joker.kloud.shared.utils.logger
@@ -62,19 +59,19 @@ class DockerIntegration : KoinComponent {
 
         logger.info("Docker client initialized successfully.")
 
-        val kCloudNetwork = dockerClient.listNetworksCmd()
-            .withNameFilter("kcloud_network")
+        val kloudNetwork = dockerClient.listNetworksCmd()
+            .withNameFilter("kloud_network")
             .exec()
             .firstOrNull()
 
-        if (kCloudNetwork == null) {
+        if (kloudNetwork == null) {
             dockerClient.createNetworkCmd()
-                .withName("kcloud_network")
+                .withName("kloud_network")
                 .withDriver("bridge")
                 .exec()
-            logger.info("Created kcloud_network for containers.")
+            logger.info("Created kloud_network for containers.")
         } else {
-            logger.info("kcloud_network already exists.")
+            logger.info("kloud_network already exists.")
         }
 
         templates.listTemplates().forEach {
@@ -112,14 +109,6 @@ class DockerIntegration : KoinComponent {
         }
     }
 
-    fun deleteContainerInBackground(containerId: String, force: Boolean = true, onDeleted: (() -> Unit)? = null) {
-        scope.launch {
-            deleteContainerBlocking(containerId, force) {
-                onDeleted?.invoke()
-            }
-        }
-    }
-
     fun restartContainerInBackground(containerId: String, onRestarted: (() -> Unit)? = null) {
         scope.launch {
             restartContainerBlocking(containerId) {
@@ -141,14 +130,6 @@ class DockerIntegration : KoinComponent {
         onStopped?.invoke()
     }
 
-    fun deleteContainerBlocking(containerId: String, force: Boolean = true, onDeleted: (() -> Unit)? = null) {
-        dockerClient.removeContainerCmd(containerId)
-            .withForce(force)
-            .exec()
-        logger.info("Container $containerId deleted successfully.")
-        onDeleted?.invoke()
-    }
-
     fun restartContainerBlocking(containerId: String, onRestarted: (() -> Unit)? = null) {
         dockerClient.restartContainerCmd(containerId).exec()
         onRestarted?.invoke()
@@ -167,9 +148,10 @@ class DockerIntegration : KoinComponent {
         return dockerClient.listContainersCmd()
             .withShowAll(true)
             .exec()
+            .filter { it.labels["kloud-template"] != null }
             .mapNotNull { container ->
                 runCatching {
-                    dockerClient.inspectContainerCmd(container.id).exec()
+                    dockerClient.inspectContainerCmd(container.id).withContainerId(container.id).exec()
                 }.getOrNull()
             }
     }
@@ -242,9 +224,11 @@ class DockerIntegration : KoinComponent {
     }
 
     fun createContainer(
+        id: String,
         template: Template,
         serverName: String,
-        onFinished: ((container: CreateContainerResponse, port: Int) -> Unit)? = null
+        onCreated: ((container: CreateContainerResponse, port: Int) -> Unit)? = null,
+        onFinished: ((container: CreateContainerResponse, port: Int) -> Unit)? = null,
     ) {
         val free = DockerUtils.findClosestPortTo25565()
             ?: throw IllegalStateException("No free port found for container ${template.name}")
@@ -271,6 +255,7 @@ class DockerIntegration : KoinComponent {
             putIfAbsent("KLOUD_REDIS_PORT", Config.redisPort.toString())
             putIfAbsent("KLOUD_API_TOKEN", Config.apiToken)
             putIfAbsent("KLOUD_API_PORT", Config.backendPort.toString())
+            putIfAbsent("KLOUD_ID", id)
 
         }
 
@@ -303,13 +288,22 @@ class DockerIntegration : KoinComponent {
 
                 runningDirectory.mkdirs()
 
-                // copy template files to running directory
-                val templateDir = File("./templates/${template.name}")
+                val directories = mutableListOf(
+                    template.name,
+                    "dynamic_${template.type.name.lowercase()}", // all dynamic from the same type
+                )
 
-                if (templateDir.exists()) {
-                    templateDir.copyRecursively(runningDirectory, true)
-                } else {
-                    logger.warn("Template directory ${templateDir.absolutePath} does not exist. Using running directory only.")
+                directories.addAll(template.dynamic!!.extraDirectories)
+
+                // copy template files to running directory
+                directories.forEach { dirName ->
+                    val templateDir = File("./templates/$dirName")
+
+                    if (templateDir.exists()) {
+                        templateDir.copyRecursively(runningDirectory, true)
+                    } else {
+                        templateDir.mkdirs()
+                    }
                 }
 
                 runningDirectory
@@ -373,24 +367,15 @@ class DockerIntegration : KoinComponent {
                     .withAutoRemove(true)
                     .withBinds(*binds.toTypedArray())
                     .ifTrue({ template.type != ServerType.STANDALONE_SERVER }) { e ->
-                        e.withNetworkMode("kcloud_network")
+                        e.withNetworkMode("kloud_network")
                     }
             )
 
             val container = containerCmd.exec()
 
-            val event = ServerUpdateStateEvent(
-                serverId = container.id,
-                state = ServerState.STARTING
-            )
-            redis.publishEvent(RedisNames.SERVERS, event)
+            onCreated?.invoke(container, free)
 
             startContainerInBackground(container.id) {
-                val startedEvent = ServerUpdateStateEvent(
-                    serverId = container.id,
-                    state = ServerState.RUNNING
-                )
-                redis.publishEvent(RedisNames.SERVERS, startedEvent)
                 onFinished?.invoke(container, free)
             }
             logger.info("Container ${template.name} created with ID ${container.id}")

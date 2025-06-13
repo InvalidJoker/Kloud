@@ -6,6 +6,5 @@ import kotlinx.serialization.Serializable
 enum class ServerState {
     STARTING,
     RUNNING,
-    STOPPING,
     GONE,
 }

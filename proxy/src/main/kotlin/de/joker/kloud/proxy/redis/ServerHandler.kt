@@ -2,6 +2,7 @@ package de.joker.kloud.proxy.redis
 
 import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.server.ServerInfo
+import de.joker.kloud.proxy.config.ConfigManager
 import de.joker.kloud.shared.events.IEvent
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.events.ServerUpdateStateEvent
@@ -9,6 +10,7 @@ import de.joker.kloud.shared.redis.RedisHandler
 import de.joker.kloud.shared.server.SerializableServer
 import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.utils.logger
+import dev.fruxz.stacked.text
 import org.koin.java.KoinJavaComponent.inject
 import java.net.InetSocketAddress
 
@@ -28,29 +30,41 @@ class ServerHandler : RedisHandler {
     override fun handleEvent(event: IEvent) {
         when (event) {
             is ServerUpdateStateEvent -> {
-                val redis: RedisSubscriber by inject(RedisSubscriber::class.java)
-                val server = redis.getServer(event.serverId)
-
-                if (server == null) {
-                    logger.warn("Server with ID ${event.serverId} not found in Redis.")
-                    return
-                }
-
-                if (server.template.type != ServerType.PROXIED_SERVER) return
+                if (event.server.template.type != ServerType.PROXIED_SERVER) return
 
                 val proxyServer: ProxyServer by inject(ProxyServer::class.java)
 
                 when (event.state) {
                     ServerState.RUNNING -> {
-                        proxyServer.registerServer(server.serverInfo)
+                        proxyServer.registerServer(event.server.serverInfo)
+
+                        if (!ConfigManager.config.startNotificationEnabled) return
+
+                        proxyServer.allPlayers.filter { player ->
+                            player.hasPermission("kloud.notify")
+                        }.forEach { player ->
+                            player.sendMessage(text(ConfigManager.config.startMessage
+                                .replace("{serverName}", event.server.serverName)
+                            ))
+                        }
                     }
 
-                    ServerState.STOPPING -> {
-                        val serverInfo = proxyServer.getServer(server.serverName)
+                    ServerState.GONE -> {
+                        val serverInfo = proxyServer.getServer(event.server.serverName)
                         if (serverInfo != null && serverInfo.isPresent) {
                             proxyServer.unregisterServer(serverInfo.get().serverInfo)
                         } else {
-                            logger.warn("Server ${server.serverName} not found in proxy.")
+                            logger.warn("Server ${event.server.serverName} not found in proxy.")
+                        }
+
+                        if (!ConfigManager.config.stopNotificationEnabled) return
+
+                        proxyServer.allPlayers.filter { player ->
+                            player.hasPermission("kloud.notify")
+                        }.forEach { player ->
+                            player.sendMessage(text(ConfigManager.config.stopMessage
+                                .replace("{serverName}", event.server.serverName)
+                            ))
                         }
                     }
 

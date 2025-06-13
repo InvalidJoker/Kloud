@@ -5,7 +5,9 @@ import com.google.inject.Inject
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.Plugin
+import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
+import de.joker.kloud.proxy.config.ConfigManager
 import de.joker.kloud.proxy.listener.ConnectionListener
 import de.joker.kloud.proxy.listener.KickListener
 import de.joker.kloud.proxy.redis.RedisSubscriber
@@ -20,19 +22,27 @@ import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import org.koin.java.KoinJavaComponent.inject
 import org.koin.logger.slf4jLogger
+import java.nio.file.Path
 
 @Plugin(
-    id = "kcloud-proxy",
+    id = "kloud-proxy",
     name = "Kloud Proxy",
     version = BuildConstants.VERSION,
     authors = ["InvalidJoker"]
 )
 class ProxyPlugin @Inject constructor(
+    @DataDirectory val dataDirectory: Path,
     val server: ProxyServer,
 ) {
+    companion object {
+        lateinit var instance: ProxyPlugin
+            private set
+    }
+
     @OptIn(DelicateCoroutinesApi::class)
     @Subscribe
     fun handleInitialize(ignored: ProxyInitializeEvent) {
+        instance = this
         val thisModule = module {
             single { server }
         }
@@ -48,6 +58,8 @@ class ProxyPlugin @Inject constructor(
                 redisModule
             )
         }
+
+        ConfigManager.loadConfig(dataDirectory)
 
         val token = System.getenv("KLOUD_API_TOKEN")
             ?: throw IllegalStateException("KLOUD_API_TOKEN environment variable is not set.")
@@ -74,6 +86,15 @@ class ProxyPlugin @Inject constructor(
         redisSubscriber.connect()
 
         val servers = redisSubscriber.getAllServers()
+
+        // remove all existing servers in the proxy
+        server.allServers.forEach { existingServer ->
+            val name = existingServer.serverInfo.name
+            if (servers.none { it.serverName == name }) {
+                server.unregisterServer(existingServer.serverInfo)
+                logger.info("Unregistered server: $name")
+            }
+        }
 
         servers.forEach { server ->
             if (server.template.type != ServerType.PROXIED_SERVER) return@forEach

@@ -6,6 +6,33 @@ services:
     volumes:
       - redis-data:/data
     command: ["redis-server", "--save", "60", "1"]
+    networks:
+      - kcloud_network
+
+  cloud:
+    build:
+      context: ./cloud
+    image: kloud-cloud:latest
+    container_name: kloud-cloud
+    depends_on:
+      - redis
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./cloud/templates:/app/templates
+      - ./cloud/running:/app/running
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - BACKEND_PORT=8080
+      - API_TOKEN=changeme_token
+    networks:
+      - kcloud_network
 
 volumes:
   redis-data:
+
+networks:
+  kcloud_network:
+    driver: bridge

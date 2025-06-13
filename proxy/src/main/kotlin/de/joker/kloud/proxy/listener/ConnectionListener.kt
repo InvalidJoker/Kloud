@@ -17,20 +17,27 @@ class ConnectionListener : KoinComponent {
         val redisServer = redis.getLobbyServers()
 
         val servers = server.allServers
-            .filter { it.serverInfo.name in redisServer.map { it.serverName } }
+            .map { gameServer ->
+                val redis = redisServer.firstOrNull { it.serverName == gameServer.serverInfo.name }
+                gameServer to redis
+            }
+            .filter { (_, redis) ->
+                redis != null && redis.template.requiredPermissions.all { perm ->
+                    event.player.hasPermission(perm)
+                }
+            }
 
         if (servers.isEmpty()) {
             logger.warn("No lobby servers available for player ${event.player.username}.")
-
             return
         }
 
         // get lobby with least players
-        val lobbyServer = servers.minByOrNull { it.playersConnected.size } ?: servers.firstOrNull()
+        val lobbyServer = servers.minByOrNull { it.first.playersConnected.size } ?: servers.firstOrNull()
 
         if (lobbyServer != null) {
-            logger.info("Player ${event.player.username}: ${lobbyServer.serverInfo.name}, port ${lobbyServer.serverInfo.address.port}")
-            event.setInitialServer(lobbyServer)
+            logger.info("Player ${event.player.username}: ${lobbyServer.first.serverInfo.name}, port ${lobbyServer.first.serverInfo.address.port}")
+            event.setInitialServer(lobbyServer.first)
         } else {
             logger.warn("No lobby server found for player ${event.player.username}.")
         }

@@ -13,19 +13,19 @@ import java.util.*
 class APIWrapper(
     private val host: String,
     private val port: Int,
-    private val token: String,
+    token: String,
 ) {
-    private fun createControllerChannel(): ManagedChannel {
-        return ManagedChannelBuilder.forAddress(host, port).usePlaintext().build()
-    }
+    private val channel: ManagedChannel = ManagedChannelBuilder.forAddress(host, port)
+        .usePlaintext()
+        .build()
 
     private val serverCaller =
-        ServerServiceGrpcKt.ServerServiceCoroutineStub(createControllerChannel()).withCallCredentials(
+        ServerServiceGrpcKt.ServerServiceCoroutineStub(channel).withCallCredentials(
             AuthCallCredentials(token)
         )
 
     private val templateCaller =
-        TemplateServiceGrpcKt.TemplateServiceCoroutineStub(createControllerChannel()).withCallCredentials(
+        TemplateServiceGrpcKt.TemplateServiceCoroutineStub(channel).withCallCredentials(
             AuthCallCredentials(token)
         )
 

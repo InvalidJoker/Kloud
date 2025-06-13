@@ -1,4 +1,4 @@
-package de.joker.kloud.master.other
+package de.joker.kloud.master.secret
 
 import org.koin.core.component.KoinComponent
 import java.io.File
@@ -36,10 +36,8 @@ class SecretManager : KoinComponent {
     private fun generateSecureRandomString(): String {
         val random = SecureRandom()
 
-        val bytes = ByteArray(16) // 128 bits
+        val bytes = ByteArray(32)
         random.nextBytes(bytes)
         return bytes.joinToString("") { String.format("%02x", it) }
     }
-
-
 }

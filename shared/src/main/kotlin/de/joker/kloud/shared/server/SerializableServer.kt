@@ -5,7 +5,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class SerializableServer(
-    val id: String,
+    val internalId: String,
+    val containerId: String,
     val serverName: String,
     val template: Template,
     var serverData: ServerData,
