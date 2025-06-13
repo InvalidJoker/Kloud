@@ -2,6 +2,7 @@ package de.joker.kloud.proxy.redis
 
 import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.server.ServerInfo
+import de.joker.kloud.proxy.config.ConfigManager
 import de.joker.kloud.shared.events.IEvent
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.events.ServerUpdateStateEvent
@@ -37,12 +38,15 @@ class ServerHandler : RedisHandler {
                     ServerState.RUNNING -> {
                         proxyServer.registerServer(event.server.serverInfo)
 
+                        if (!ConfigManager.config.startNotificationEnabled) return
+
                         proxyServer.allPlayers.filter { player ->
                             player.hasPermission("kloud.notify")
                         }.forEach { player ->
-                            player.sendMessage(text("<gray>[<green>+<gray>] <white>${event.server.serverName}"))
+                            player.sendMessage(text(ConfigManager.config.startMessage
+                                .replace("{serverName}", event.server.serverName)
+                            ))
                         }
-
                     }
 
                     ServerState.GONE -> {
@@ -53,10 +57,14 @@ class ServerHandler : RedisHandler {
                             logger.warn("Server ${event.server.serverName} not found in proxy.")
                         }
 
+                        if (!ConfigManager.config.stopNotificationEnabled) return
+
                         proxyServer.allPlayers.filter { player ->
                             player.hasPermission("kloud.notify")
                         }.forEach { player ->
-                            player.sendMessage(text("<gray>[<red>-<gray>] <white>${event.server.serverName}"))
+                            player.sendMessage(text(ConfigManager.config.stopMessage
+                                .replace("{serverName}", event.server.serverName)
+                            ))
                         }
                     }
 
