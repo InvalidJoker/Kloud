@@ -157,6 +157,12 @@ class ServerManager : KoinComponent {
             throw IllegalStateException("Server with ID $id already exists for static template ${template.name}.")
         }
 
+        // check if maximum servers reached
+        if (template.dynamic != null && (serverQueue[template] ?: 0) >= template.dynamic!!.maxServers) {
+            logger.warn("Maximum servers reached for template ${template.name}.")
+            throw IllegalStateException("Maximum servers reached for template ${template.name}.")
+        }
+
         val containerName = if (template.dynamic != null) {
             val ids = serverIds[template.name] ?: 1
             "${template.name}-${ids}"

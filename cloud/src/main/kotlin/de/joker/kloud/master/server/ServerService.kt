@@ -39,13 +39,18 @@ class ServerService : ServerServiceGrpcKt.ServerServiceCoroutineImplBase() {
             null
         }
 
-        val id = serverManager.createServer(
-            template,
-            ServerData(
-                privateGame = privateGame,
-                extraData = request.extraDataMap.toMap(),
+        var id: String
+        try {
+            id = serverManager.createServer(
+                template,
+                ServerData(
+                    privateGame = privateGame,
+                    extraData = request.extraDataMap.toMap(),
+                )
             )
-        )
+        } catch (e: IllegalStateException) {
+            throw StatusException(Status.RESOURCE_EXHAUSTED.withDescription(e.message ?: "Maximum number of servers reached."))
+        }
 
         return ServerCreateResponse.newBuilder()
             .setId(id)

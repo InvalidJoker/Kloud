@@ -7,6 +7,7 @@ import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.Plugin
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
+import de.joker.kloud.proxy.command.CloudCommand
 import de.joker.kloud.proxy.config.ConfigManager
 import de.joker.kloud.proxy.listener.ConnectionListener
 import de.joker.kloud.proxy.listener.KickListener
@@ -15,6 +16,8 @@ import de.joker.kloud.proxy.redis.serverInfo
 import de.joker.kloud.shared.api.APIWrapper
 import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.utils.logger
+import dev.jorel.commandapi.CommandAPI
+import dev.jorel.commandapi.CommandAPIVelocityConfig
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -39,40 +42,46 @@ class ProxyPlugin @Inject constructor(
             private set
     }
 
+    init {
+        CommandAPI.onLoad(CommandAPIVelocityConfig(server, this));
+    }
+
     @OptIn(DelicateCoroutinesApi::class)
     @Subscribe
     fun handleInitialize(ignored: ProxyInitializeEvent) {
         instance = this
-        val thisModule = module {
-            single { server }
-        }
-
-        val redisModule = module {
-            single { RedisSubscriber() }
-        }
-
-        startKoin {
-            slf4jLogger()
-            modules(
-                thisModule,
-                redisModule
-            )
-        }
-
-        ConfigManager.loadConfig(dataDirectory)
 
         val token = System.getenv("KLOUD_API_TOKEN")
             ?: throw IllegalStateException("KLOUD_API_TOKEN environment variable is not set.")
         val port = System.getenv("KLOUD_API_PORT")?.toIntOrNull()
             ?: throw IllegalStateException("KLOUD_API_PORT environment variable is not set or invalid.")
 
+        val thisModule = module {
+            single { server }
+            single { RedisSubscriber() }
+            single { APIWrapper(
+                host = "host.docker.internal",
+                token = token,
+                port = port
+            ) }
+        }
 
-        // DEBUG stuff, will be removed in production
-        val api = APIWrapper(
-            host = "host.docker.internal",
-            token = token,
-            port = port
-        )
+        startKoin {
+            slf4jLogger()
+            modules(
+                thisModule
+            )
+        }
+
+        ConfigManager.loadConfig(dataDirectory)
+
+        CommandAPI.onEnable();
+
+        if (ConfigManager.config.cloudCommandEnabled) {
+            CloudCommand.register();
+        }
+
+        val api: APIWrapper by inject(APIWrapper::class.java)
 
         GlobalScope.launch {
             println(api.getTemplates())

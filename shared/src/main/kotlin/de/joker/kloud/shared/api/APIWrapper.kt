@@ -8,6 +8,7 @@ import build.buf.gen.templates.v1.TemplateServiceGrpcKt
 import de.joker.kloud.shared.templates.Template
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
+import io.grpc.Status
 import java.util.*
 
 class APIWrapper(
@@ -35,11 +36,17 @@ class APIWrapper(
         return templates.templatesList.map { Template.fromProto(it) }
     }
 
+    data class ServerCreationResult(
+        val id: String?,
+        val maximumServersReached: Boolean,
+        val templateNotFound: Boolean
+    )
+
     suspend fun createServer(
         templateName: String,
         privateGameHost: UUID? = null,
         extraData: Map<String, String> = emptyMap()
-    ): String {
+    ): ServerCreationResult {
         val request = CreateServerRequest.newBuilder()
             .setTemplateId(templateName)
 
@@ -53,7 +60,39 @@ class APIWrapper(
             request.extraDataMap.putAll(extraData)
         }
 
-        val response = serverCaller.createServer(request.build())
-        return response.id
+        var id: String
+
+        try {
+            val response = serverCaller.createServer(request.build())
+
+            id = response.id ?: throw IllegalStateException("Server creation response did not contain an ID.")
+        } catch (e: Exception) {
+            val status = Status.fromThrowable(e)
+
+            return when (status.code) {
+                status.code -> {
+                    ServerCreationResult(
+                        id = null,
+                        maximumServersReached = true,
+                        templateNotFound = false
+                    )
+                }
+                status.code -> {
+                    ServerCreationResult(
+                        id = null,
+                        maximumServersReached = false,
+                        templateNotFound = true
+                    )
+                }
+                else -> {
+                    throw e
+                }
+            }
+        }
+        return ServerCreationResult(
+            id = id,
+            maximumServersReached = false,
+            templateNotFound = false
+        )
     }
 }
