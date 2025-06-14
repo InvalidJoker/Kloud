@@ -5,11 +5,18 @@ import build.buf.gen.server.v1.CreateServerRequest
 import build.buf.gen.server.v1.PrivateGameData
 import build.buf.gen.server.v1.ServerServiceGrpcKt
 import build.buf.gen.templates.v1.TemplateServiceGrpcKt
+import com.github.benmanes.caffeine.cache.Caffeine
 import de.joker.kloud.shared.templates.Template
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Status
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 class APIWrapper(
     private val host: String,
@@ -19,6 +26,10 @@ class APIWrapper(
     private val channel: ManagedChannel = ManagedChannelBuilder.forAddress(host, port)
         .usePlaintext()
         .build()
+
+    private val templateCache = Caffeine.newBuilder()
+        .expireAfterWrite(1, TimeUnit.MINUTES)
+        .build<String, List<Template>>()
 
     private val serverCaller =
         ServerServiceGrpcKt.ServerServiceCoroutineStub(channel).withCallCredentials(
@@ -30,10 +41,27 @@ class APIWrapper(
             AuthCallCredentials(token)
         )
 
-    suspend fun getTemplates(): List<Template> {
-        val templates = templateCaller.listTemplates(GenericRequest.getDefaultInstance())
+    fun getTemplatesSync(): List<Template> = runBlocking {
+        return@runBlocking getTemplates(forceRefresh = false)
+    }
 
-        return templates.templatesList.map { Template.fromProto(it) }
+    suspend fun getTemplates(
+        forceRefresh: Boolean = false
+    ): List<Template> {
+        val cacheKey = "templates"
+        if (!forceRefresh) {
+            val cached = templateCache.getIfPresent(cacheKey)
+            if (cached != null) {
+                return cached
+            }
+        }
+
+        val templates = templateCaller.listTemplates(GenericRequest.getDefaultInstance())
+        val result = templates.templatesList.map { Template.fromProto(it) }
+
+        templateCache.put(cacheKey, result)
+
+        return result
     }
 
     data class ServerCreationResult(

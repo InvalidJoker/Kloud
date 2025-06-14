@@ -25,6 +25,26 @@ abstract class RedisWrapper(
         }
     }
 
+    fun getServersByTemplate(templateName: String): List<SerializableServer> {
+        return try {
+            val servers = getAllServers()
+            servers.filter { it.template.name.equals(templateName, ignoreCase = true) }
+        } catch (e: Exception) {
+            logger.error("Failed to get servers for template: $templateName", e)
+            emptyList()
+        }
+    }
+
+    fun getServerByName(name: String): SerializableServer? {
+        return try {
+            val servers = getAllServers()
+            servers.find { it.serverName.equals(name, ignoreCase = true) }
+        } catch (e: Exception) {
+            logger.error("Failed to get server with name: $name", e)
+            null
+        }
+    }
+
     fun getServerByInternal(internalId: String): SerializableServer? {
         return try {
             redisAdapter.getFromHash("servers", internalId)?.let {

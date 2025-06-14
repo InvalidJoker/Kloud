@@ -1,8 +1,11 @@
 package de.joker.kloud.proxy.command
 
 import de.joker.kloud.proxy.ProxyPlugin
+import de.joker.kloud.proxy.redis.RedisSubscriber
 import de.joker.kloud.shared.api.APIWrapper
+import de.joker.kloud.shared.server.ServerType
 import dev.fruxz.stacked.text
+import dev.jorel.commandapi.arguments.ArgumentSuggestions
 import dev.jorel.commandapi.kotlindsl.commandTree
 import dev.jorel.commandapi.kotlindsl.getValue
 import dev.jorel.commandapi.kotlindsl.literalArgument
@@ -16,10 +19,19 @@ import org.koin.core.component.inject
 
 object CloudCommand: KoinComponent {
     fun register() {
+        val api by inject<APIWrapper>()
+        val redis by inject<RedisSubscriber>()
         return commandTree("cloud") {
             literalArgument("servers") {
                 literalArgument("start") {
                     stringArgument("group") {
+                        includeSuggestions(
+                            ArgumentSuggestions.strings {
+                                val templates = api.getTemplatesSync()
+
+                                templates.map { it.name }.toTypedArray()
+                            }
+                        )
                         playerExecutor { p, args ->
                             val group: String by args
 
@@ -63,6 +75,39 @@ object CloudCommand: KoinComponent {
                             }
 
                             p.sendMessage(text("- $serverName > <yellow>$playerNames</yellow>"))
+                        }
+                    }
+                }
+                literalArgument("info") {
+                    stringArgument("serverName") {
+                        includeSuggestions(
+                            ArgumentSuggestions.strings {
+                                val servers = redis.getAllServers().filter { it.template.type == ServerType.PROXIED_SERVER }
+                                servers.map { it.serverName }.toTypedArray()
+                            }
+                        )
+                        playerExecutor { p, args ->
+                            val serverName: String by args
+
+                            val server = ProxyPlugin.instance.server.getServer(serverName)
+                            if (server != null && server.isPresent) {
+                                val server = server.get()
+                                val players = server.playersConnected
+                                val playerNames = if (players.isEmpty()) {
+                                    "No players online"
+                                } else {
+                                    players.joinToString(", ") { it.username }
+                                }
+                                val info = redis.getServerByName(serverName)
+
+                                p.sendMessage(text("<white>Server: <yellow>$serverName</yellow>"))
+                                p.sendMessage(text("<white>Players: <yellow>$playerNames</yellow>"))
+                                p.sendMessage(text("<white>Internal ID: <yellow>${info?.internalId ?: "N/A"}</yellow>"))
+                                p.sendMessage(text("<white>Container ID: <yellow>${info?.containerId ?: "N/A"}</yellow>"))
+                                p.sendMessage(text("<white>Template: <yellow>${info?.template?.name ?: "N/A"}</yellow>"))
+                            } else {
+                                p.sendMessage(text("<red>Server '$serverName' not found."))
+                            }
                         }
                     }
                 }

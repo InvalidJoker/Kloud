@@ -43,7 +43,7 @@ class ProxyPlugin @Inject constructor(
     }
 
     init {
-        CommandAPI.onLoad(CommandAPIVelocityConfig(server, this));
+        CommandAPI.onLoad(CommandAPIVelocityConfig(server, this).setNamespace("kloud"));
     }
 
     @OptIn(DelicateCoroutinesApi::class)

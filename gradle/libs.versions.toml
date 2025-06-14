@@ -23,6 +23,7 @@ grpc = "1.73.0"
 grpc-kotlin = "1.4.2"
 toml = "0.7.2"
 commandapi = "10.0.0"
+caffeine = "3.2.1"
 
 [libraries]
 ascend = { module = "dev.fruxz:ascend", version.ref = "ascend" }
@@ -64,6 +65,8 @@ toml = { module = "com.moandjiezana.toml:toml4j", version.ref = "toml" }
 commandapi-velocity = { module = "dev.jorel:commandapi-velocity-core", version.ref = "commandapi" }
 commandapi-velocity-kotlin = { module = "dev.jorel:commandapi-velocity-kotlin", version.ref = "commandapi" }
 
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
+
 # Libraries can be bundled together for easier import
 [bundles]
 kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerialization", "kotlinxCoroutines"]
@@ -87,7 +90,8 @@ utilities = [
     "ascend",
     "logbackClassic",
     "kUtilsCore",
-    "kotlinDotenv"
+    "kotlinDotenv",
+    "caffeine"
 ]
 redis = ["redis"]
 koin = ["koinCore", "koinKtor", "koinSlf4j"]

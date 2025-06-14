@@ -22,7 +22,6 @@ import java.util.UUID
 @OptIn(InternalApi::class)
 class ServerManager : KoinComponent {
     val serverQueue = mutableMapOf<Template, Int>()
-    val serverIds = mutableMapOf<String, Int>()
     val scope = CoroutineScope(Dispatchers.IO)
     val redis: RedisConnector by inject()
     val docker: DockerIntegration by inject()
@@ -42,7 +41,6 @@ class ServerManager : KoinComponent {
 
     private fun clearState() {
         serverQueue.clear()
-        serverIds.clear()
         cleanupCurrent()
     }
 
@@ -164,8 +162,8 @@ class ServerManager : KoinComponent {
         }
 
         val containerName = if (template.dynamic != null) {
-            val ids = serverIds[template.name] ?: 1
-            "${template.name}-${ids}"
+            val id = redis.getServersByTemplate(template.name).size + 1
+            "${template.name}-${id}"
         } else {
             template.name
         }
@@ -176,10 +174,6 @@ class ServerManager : KoinComponent {
             containerName,
             onCreated = { res, port ->
                 try {
-                    if (template.dynamic != null) {
-                        val currentId = serverIds[template.name] ?: 0
-                        serverIds[template.name] = currentId + 1
-                    }
                     serverQueue[template] = maxOf(0, serverQueue.getOrDefault(template, 0) - 1)
 
                     val serializableServer = SerializableServer(
