@@ -19,10 +19,11 @@ kotlinDotenv = "6.5.1"
 kUtils = "beta-0.0.2"
 yaml = "2.2"
 protospec = "1.4.3.1.20250611114831.985c2b2236b2"
-protobuf = "3.25.2"
-grpc = "1.61.0"
-grpc-kotlin = "1.4.1"
+grpc = "1.73.0"
+grpc-kotlin = "1.4.2"
 toml = "0.7.2"
+commandapi = "10.0.0"
+caffeine = "3.2.1"
 
 [libraries]
 ascend = { module = "dev.fruxz:ascend", version.ref = "ascend" }
@@ -54,14 +55,17 @@ kUtilsCore = { module = "com.github.InvalidJoker.KUtils:core", version.ref = "kU
 yaml = { module = "org.yaml:snakeyaml", version.ref = "yaml" }
 protospec = { module = "build.buf.gen:invalidjoker_kloud_grpc_kotlin", version.ref = "protospec" }
 
-protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
-
 grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
 grpc-kotlin-stub = { module = "io.grpc:grpc-kotlin-stub", version.ref = "grpc-kotlin" }
 grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
 grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
 
 toml = { module = "com.moandjiezana.toml:toml4j", version.ref = "toml" }
+
+commandapi-velocity = { module = "dev.jorel:commandapi-velocity-core", version.ref = "commandapi" }
+commandapi-velocity-kotlin = { module = "dev.jorel:commandapi-velocity-kotlin", version.ref = "commandapi" }
+
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 
 # Libraries can be bundled together for easier import
 [bundles]
@@ -77,7 +81,6 @@ backend = [
 ]
 grpc = [
     "protospec",
-    "protobuf-kotlin",
     "grpc-stub",
     "grpc-kotlin-stub",
     "grpc-protobuf",
@@ -87,10 +90,16 @@ utilities = [
     "ascend",
     "logbackClassic",
     "kUtilsCore",
-    "kotlinDotenv"
+    "kotlinDotenv",
+    "caffeine"
 ]
 redis = ["redis"]
 koin = ["koinCore", "koinKtor", "koinSlf4j"]
+commandapi = [
+    "commandapi-velocity",
+    "commandapi-velocity-kotlin"
+]
+
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

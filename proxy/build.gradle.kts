@@ -24,6 +24,9 @@ dependencies {
     shadow(libs.bundles.koin)
     implementation(libs.stacked)
     shadow(libs.stacked)
+
+    implementation(libs.bundles.commandapi)
+    shadow(libs.bundles.commandapi)
 }
 
 tasks {

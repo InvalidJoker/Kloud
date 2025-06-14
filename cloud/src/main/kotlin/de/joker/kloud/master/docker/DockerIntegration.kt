@@ -358,6 +358,9 @@ class DockerIntegration : KoinComponent {
 
             val containerCmd = dockerClient.createContainerCmd(template.image)
                 .withName(serverName)
+                .withTty(true)
+                .withAttachStdout(true)
+                .withAttachStderr(true)
                 .withLabels(mapOf("kloud-template" to template.name))
                 .withEnv(fullEnv.map { "${it.key}=${it.value}" })
 

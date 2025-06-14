@@ -12,7 +12,9 @@ object ConfigManager {
     fun loadConfig(dataDirectory: Path) {
         val path = dataDirectory.resolve("config.json")
 
-        if (path.exists()) {
+        if (!path.exists()) {
+            path.parent?.toFile()?.mkdirs()
+
             val default = PluginConfig(
                 startNotificationEnabled = true,
                 stopNotificationEnabled = true,

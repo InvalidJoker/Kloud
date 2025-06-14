@@ -20,8 +20,9 @@ class KickListener : KoinComponent {
         val serverName = event.server.serverInfo.name
         val servers = redis.getLobbyServers()
 
-        val availableServers = servers.filter { it.serverName != serverName }
-            .mapNotNull { server.getServer(it.serverName).getOrNull() }
+        val availableServers =
+            servers.filter { it.serverName != serverName }
+                .mapNotNull { server.getServer(it.serverName).getOrNull() }
 
         if (availableServers.isNotEmpty()) {
             val newServer = availableServers.minByOrNull { it.playersConnected.size } ?: availableServers.first()
