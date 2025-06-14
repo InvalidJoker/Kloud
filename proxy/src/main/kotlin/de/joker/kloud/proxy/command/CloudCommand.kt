@@ -22,8 +22,10 @@ object CloudCommand: KoinComponent {
         val api by inject<APIWrapper>()
         val redis by inject<RedisSubscriber>()
         return commandTree("cloud") {
+            withPermission("kloud.command.cloud")
             literalArgument("servers") {
                 literalArgument("start") {
+                    withPermission("kloud.command.cloud.start")
                     stringArgument("group") {
                         includeSuggestions(
                             ArgumentSuggestions.strings {
