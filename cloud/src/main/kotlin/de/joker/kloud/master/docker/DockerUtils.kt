@@ -25,6 +25,14 @@ object DockerUtils {
         return success
     }
 
+    fun isPortAvailable(port: Int): Boolean {
+        return try {
+            ServerSocket(port).use { true } // Try to open the port
+        } catch (e: Exception) {
+            false // Port is already in use
+        }
+    }
+
     fun findClosestPortTo25565(range: Int = 100): Int? {
         val targetPort = 25565
 
@@ -33,13 +41,9 @@ object DockerUtils {
             val candidates = listOf(targetPort + offset, targetPort - offset).distinct()
                 .filter { it in 1024..65535 && !portsFound.contains(it) }
             for (port in candidates) {
-                try {
-                    ServerSocket(port).use {
-                        portsFound.add(port) // Add to found ports list
-                        return port // Port is available
-                    }
-                } catch (_: Exception) {
-                    // Port is taken, continue searching
+                if (isPortAvailable(port)) {
+                    portsFound.add(port) // Mark this port as found
+                    return port // Return the first available port found
                 }
             }
         }

@@ -13,6 +13,7 @@ data class Template(
     val type: ServerType = ServerType.PROXIED_SERVER,
     val requiredPermissions: List<String> = emptyList(),
     val dynamic: DynamicTemplate? = null, // if set server is dynamic and can scale
+    val forcedPort: Int? = null, // ONLY FOR static servers, if set the server will always use this port
 ) {
     fun toProto(): ProtoTemplate {
         return ProtoTemplate.newBuilder()

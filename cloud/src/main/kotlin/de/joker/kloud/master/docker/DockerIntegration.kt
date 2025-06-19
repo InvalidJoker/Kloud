@@ -230,8 +230,17 @@ class DockerIntegration : KoinComponent {
         onCreated: ((container: CreateContainerResponse, port: Int) -> Unit)? = null,
         onFinished: ((container: CreateContainerResponse, port: Int) -> Unit)? = null,
     ) {
-        val free = DockerUtils.findClosestPortTo25565()
-            ?: throw IllegalStateException("No free port found for container ${template.name}")
+        val free = if (template.dynamic == null && template.forcedPort != null) {
+            if (DockerUtils.isPortAvailable(template.forcedPort!!)) {
+                template.forcedPort!!
+            } else {
+                DockerUtils.findClosestPortTo25565() ?: throw IllegalStateException("No free port found for container ${template.name} with forced port ${template.forcedPort}")
+            }
+
+        } else {
+            DockerUtils.findClosestPortTo25565()
+                ?: throw IllegalStateException("No free port found for container ${template.name}")
+        }
 
         val ports = mapOf( // TODO: make this dynamic
             free to 25565
