@@ -245,7 +245,10 @@ class ServerManager : KoinComponent {
 
     private fun ensureMinDynamicServers() {
         val servers = redis.getAllServers()
-        val sortedTemplates = templates.listTemplates().sortedByDescending { it.type == ServerType.PROXY }
+        val sortedTemplates = templates.listTemplates().sortedWith(
+            compareByDescending<Template> { it.type == ServerType.PROXY }
+                .thenByDescending { it.priority }
+        )
 
         sortedTemplates.filter { it.dynamic != null }.forEach { template ->
             val running = servers.count {
