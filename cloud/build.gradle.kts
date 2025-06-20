@@ -12,6 +12,12 @@ dependencies {
     implementation(libs.yaml)
     implementation(libs.bundles.grpc)
     implementation(project(":shared"))
+
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 application {

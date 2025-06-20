@@ -8,7 +8,7 @@ data class Image(
     val image: String,
     val defaultInternalPort: Int = 25565,
     val defaultVersion: String = "latest",
-    val startedMessageRegex: String = "^Done \\(\\d+\\.\\d+s\\)! For help, type \"help\"$",
+    val startedMessageRegex: String,
     val environment: Map<String, String> = emptyMap(),
 ) {
     val startedMessageRegexPattern by lazy {

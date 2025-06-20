@@ -66,9 +66,6 @@ class TemplateManager : KoinComponent {
                     image = "velocity",
                     imageVersion = "latest",
                 ),
-                environment = mapOf(
-                    "TYPE" to "VELOCITY",
-                ),
                 type = ServerType.PROXY,
                 lobby = false,
                 requiredPermissions = emptyList(),
@@ -79,9 +76,6 @@ class TemplateManager : KoinComponent {
                 build = BuildSettings(
                     image = "paper",
                     imageVersion = "latest",
-                ),
-                environment = mapOf(
-                    "TYPE" to "PAPER",
                 ),
                 type = ServerType.PROXIED_SERVER,
                 lobby = true,

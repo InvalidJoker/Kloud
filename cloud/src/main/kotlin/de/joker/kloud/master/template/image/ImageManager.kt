@@ -55,6 +55,7 @@ class ImageManager : KoinComponent {
                 environment = mapOf(
                     "TYPE" to "PAPER",
                 ),
+                startedMessageRegex = "Done \\(.*\\)! For help, type \"help\"$"
             )
             addImage(velocity)
             addImage(paper)

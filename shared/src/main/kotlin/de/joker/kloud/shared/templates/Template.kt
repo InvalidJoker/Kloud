@@ -23,7 +23,7 @@ import build.buf.gen.templates.v1.Template as ProtoTemplate
 @Serializable
 data class Template(
     val name: String,
-    val environment: Map<String, String>,
+    val environment: Map<String, String> = emptyMap(),
     val build: BuildSettings,
     val lobby: Boolean = false,
     val type: ServerType = ServerType.PROXIED_SERVER,

@@ -49,3 +49,4 @@ run/*
 cloud/templates/*
 cloud/running/*
 templates.json
+images.json

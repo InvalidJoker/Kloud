@@ -156,7 +156,7 @@ class ServerManager : KoinComponent {
         }
 
         // check if maximum servers reached
-        if (template.dynamic != null && (serverQueue[template] ?: 0) >= template.dynamic!!.maxServers) {
+        if (template.dynamic != null && (serverQueue[template] ?: 0) > template.dynamic!!.maxServers) {
             logger.warn("Maximum servers reached for template ${template.name}.")
             throw IllegalStateException("Maximum servers reached for template ${template.name}.")
         }
@@ -193,23 +193,6 @@ class ServerManager : KoinComponent {
                     redis.publishEvent(RedisNames.SERVERS, event)
                 } catch (e: Exception) {
                     logger.error("Failed to create server $containerName: ${e.message}")
-                }
-            },
-            onFinished = { res, port ->
-                try {
-                    val serializableServer = redis.getServerByContainer(res.id)
-                        ?: run {
-                            logger.error("Server with container ID ${res.id} not found in Redis.")
-                            return@createContainer
-                        }
-
-                    val event = ServerUpdateStateEvent(
-                        server = serializableServer,
-                        state = ServerState.RUNNING
-                    )
-                    redis.publishEvent(RedisNames.SERVERS, event)
-                } catch (e: Exception) {
-                    logger.error("Failed to finish server creation for ${res.id}: ${e.message}")
                 }
             }
         )
