@@ -16,9 +16,14 @@ message DynamicTemplate {
   repeated string extraDirectories = 3;
 }
 
+message BuildSettings {
+  string image = 1;
+  string imageVersion = 2;
+}
+
 message Template {
   string name = 1;
-  string image = 2;
+  BuildSettings build = 2;
   map<string, string> environment = 3;
   bool lobby = 4;
   ServerType type = 5;

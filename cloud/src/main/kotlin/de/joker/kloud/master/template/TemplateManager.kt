@@ -1,17 +1,21 @@
 package de.joker.kloud.master.template
 
+import de.joker.kloud.master.template.image.ImageManager
 import de.joker.kloud.shared.server.ServerType
+import de.joker.kloud.shared.templates.BuildSettings
 import de.joker.kloud.shared.templates.DynamicTemplate
 import de.joker.kloud.shared.templates.Template
 import de.joker.kloud.shared.utils.logger
 import dev.fruxz.ascend.json.globalJson
 import kotlinx.serialization.builtins.ListSerializer
 import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import java.io.File
 import kotlin.system.exitProcess
 
 
 class TemplateManager : KoinComponent {
+    val images: ImageManager by inject()
     private val templates = mutableMapOf<String, Template>()
 
     private fun addTemplate(template: Template) {
@@ -20,10 +24,6 @@ class TemplateManager : KoinComponent {
 
     fun getTemplate(name: String): Template? {
         return templates[name]
-    }
-
-    private fun removeTemplate(name: String) {
-        templates.remove(name)
     }
 
     fun listTemplates(): List<Template> {
@@ -41,14 +41,20 @@ class TemplateManager : KoinComponent {
                 exitProcess(1)
             }
 
+            if (loadedTemplates.groupBy { it.name }.any { it.value.size > 1 }) {
+                logger.error("Duplicate template names found in templates.json. Please ensure all template names are unique.")
+                exitProcess(1)
+            }
+
             loadedTemplates.forEach {
                 if (templates.containsKey(it.name)) {
                     logger.warn("Template with name '${it.name}' already exists. Overwriting it.")
                 }
 
-                if (it.image.isBlank()) {
-                    logger.error("Template '${it.name}' has an empty image field. Skipping this template.")
-                    return@forEach
+                val image = images.getImage(it.build.image)
+                if (image == null) {
+                    logger.error("Image '${it.build.image}' for template '${it.name}' not found. Please ensure the image exists in images.json.")
+                    exitProcess(1)
                 }
 
                 addTemplate(it)
@@ -56,7 +62,10 @@ class TemplateManager : KoinComponent {
         } else {
             val proxy = Template(
                 name = "proxy",
-                image = "itzg/mc-proxy",
+                build = BuildSettings(
+                    image = "velocity",
+                    imageVersion = "latest",
+                ),
                 environment = mapOf(
                     "TYPE" to "VELOCITY",
                 ),
@@ -67,7 +76,10 @@ class TemplateManager : KoinComponent {
             )
             val lobby = Template(
                 name = "lobby",
-                image = "itzg/minecraft-server",
+                build = BuildSettings(
+                    image = "paper",
+                    imageVersion = "latest",
+                ),
                 environment = mapOf(
                     "TYPE" to "PAPER",
                 ),

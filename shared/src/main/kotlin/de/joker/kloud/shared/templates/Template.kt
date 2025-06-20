@@ -23,8 +23,8 @@ import build.buf.gen.templates.v1.Template as ProtoTemplate
 @Serializable
 data class Template(
     val name: String,
-    val image: String,
     val environment: Map<String, String>,
+    val build: BuildSettings,
     val lobby: Boolean = false,
     val type: ServerType = ServerType.PROXIED_SERVER,
     val requiredPermissions: List<String> = emptyList(),
@@ -35,11 +35,11 @@ data class Template(
     fun toProto(): ProtoTemplate {
         return ProtoTemplate.newBuilder()
             .setName(name)
-            .setImage(image)
             .putAllEnvironment(environment)
             .setLobby(lobby)
             .setType(type.toProto())
             .addAllRequiredPermissions(requiredPermissions)
+            .setBuild(build.toProto())
             .apply {
                 this@Template.dynamic?.let {
                     dynamic = it.toProto()
@@ -52,7 +52,10 @@ data class Template(
         fun fromProto(proto: ProtoTemplate): Template {
             return Template(
                 name = proto.name,
-                image = proto.image,
+                build = BuildSettings(
+                    image = proto.build.image,
+                    imageVersion = proto.build.imageVersion
+                ),
                 environment = proto.environmentMap,
                 lobby = proto.lobby,
                 type = ServerType.fromProto(proto.type),
