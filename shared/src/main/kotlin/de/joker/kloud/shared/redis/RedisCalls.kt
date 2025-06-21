@@ -17,7 +17,7 @@ class RedisCalls(
     val port: Int,
     val channels: List<RedisHandler>
 ) {
-    lateinit var jedisPool: JedisPool
+    private lateinit var jedisPool: JedisPool
     private lateinit var jedisPubSub: JedisPubSub
 
     val redisScope = CoroutineScope(Dispatchers.IO)
@@ -53,7 +53,7 @@ class RedisCalls(
         if (channels.isNotEmpty()) {
             redisScope.launch {
                 jedisPool.resource.use { jedis ->
-                    jedis.subscribe(jedisPubSub, *channels.map { it.channel }.toTypedArray())
+                    jedis.subscribe(jedisPubSub, *channels.map { it.channel }.distinct().toTypedArray())
                 }
             }
         }
