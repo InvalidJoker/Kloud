@@ -18,8 +18,13 @@ abstract class RedisWrapper(
 
     fun getAllServers(): List<SerializableServer> {
         return try {
-            redisAdapter.getHash("servers").values.map {
-                globalJson.decodeFromString<SerializableServer>(it)
+            redisAdapter.getHash("servers").values.mapNotNull {
+                try {
+                    globalJson.decodeFromString<SerializableServer>(it)
+                } catch (e: Exception) {
+                    logger.error("Failed to decode server from Redis", e)
+                    null
+                }
             }
         } catch (e: Exception) {
             logger.error("Failed to get all servers", e)

@@ -40,13 +40,9 @@ class RedisCalls(
                 try {
                     val event = eventJson.decodeFromString(IEvent::class.serializer(), message)
 
-                    val handler = channels.find { it.channel == channel }
+                    val handler = channels.filter { it.channel == channel }
 
-                    if (handler != null) {
-                        handler.handleEvent(event)
-                    } else {
-                        logger.warn("No handler found for channel $channel")
-                    }
+                    if (handler.isNotEmpty()) handler.forEach { it.handleEvent(event) }
                 } catch (e: Exception) {
                     logger.error("Failed to parse event: ${e.message}")
                 }
