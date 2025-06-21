@@ -14,7 +14,7 @@ import org.koin.core.component.KoinComponent
 
 class CloudBackend : KoinComponent {
     private fun createGrpcServer(): Server {
-        return ServerBuilder.forPort(Config.backendPort)
+        return ServerBuilder.forPort(Config.BACKEND_PORT)
             .addService(TemplatesService())
             .addService(ServerService())
             .intercept(AuthInterceptor(Config.apiToken))

@@ -24,6 +24,8 @@ grpc-kotlin = "1.4.2"
 toml = "0.7.2"
 commandapi = "10.0.0"
 caffeine = "3.2.1"
+run-velocity = "2.3.1"
+shadow = "8.3.6"
 
 [libraries]
 ascend = { module = "dev.fruxz:ascend", version.ref = "ascend" }
@@ -103,3 +105,5 @@ commandapi = [
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+run-velocity = { id = "xyz.jpenilla.run-velocity", version.ref = "run-velocity" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }

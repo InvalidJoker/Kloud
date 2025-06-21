@@ -3,8 +3,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
-    id("xyz.jpenilla.run-velocity") version "2.3.1"
-    id("com.gradleup.shadow") version "8.3.6"
+    alias(libs.plugins.run.velocity)
+    alias(libs.plugins.shadow)
 }
 
 dependencies {

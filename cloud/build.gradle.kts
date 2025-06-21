@@ -1,6 +1,9 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
+    alias(libs.plugins.shadow)
     application
 }
 
@@ -16,8 +19,21 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
-tasks.test {
-    useJUnitPlatform()
+tasks {
+    withType<JavaCompile> {
+        options.isFork = true
+        options.isIncremental = true
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+
+    named("shadowJar", ShadowJar::class) {
+        mergeServiceFiles()
+
+        archiveFileName.set("${project.name}.jar")
+    }
 }
 
 application {

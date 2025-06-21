@@ -301,7 +301,7 @@ class DockerIntegration : KoinComponent {
             putIfAbsent("KLOUD_REDIS_HOST", redisHost)
             putIfAbsent("KLOUD_REDIS_PORT", Config.redisPort.toString())
             putIfAbsent("KLOUD_API_TOKEN", Config.apiToken)
-            putIfAbsent("KLOUD_API_PORT", Config.backendPort.toString())
+            putIfAbsent("KLOUD_API_PORT", Config.BACKEND_PORT.toString())
             putIfAbsent("KLOUD_ID", id)
         }
 
