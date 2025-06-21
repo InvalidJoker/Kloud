@@ -6,6 +6,7 @@ import de.joker.kloud.master.docker.DockerIntegration
 import de.joker.kloud.master.secret.SecretManager
 import de.joker.kloud.master.redis.RedisConnector
 import de.joker.kloud.master.template.TemplateManager
+import de.joker.kloud.master.template.image.ImageManager
 import de.joker.kloud.shared.events.CloudStoppedEvent
 import de.joker.kloud.shared.redis.RedisNames
 import de.joker.kloud.shared.utils.logger
@@ -23,6 +24,7 @@ object KloudInstance {
         module { single { DockerIntegration() } },
         module { single { RedisConnector() } },
         module { single { TemplateManager() } },
+        module { single { ImageManager() } },
         module { single { ServerManager() } },
         module { single { SecretManager() } },
         module { single { CloudBackend() } },
@@ -43,12 +45,15 @@ object KloudInstance {
 
         val redis: RedisConnector by inject(RedisConnector::class.java)
         val docker: DockerIntegration by inject(DockerIntegration::class.java)
+        val image: ImageManager by inject(ImageManager::class.java)
         val template: TemplateManager by inject(TemplateManager::class.java)
         val serverManager: ServerManager by inject(ServerManager::class.java)
         val secretManager: SecretManager by inject(SecretManager::class.java)
         val backend: CloudBackend by inject(CloudBackend::class.java)
 
         secretManager.loadSecrets()
+
+        image.loadImagesFromFile()
 
         template.loadTemplatesFromFile()
 
@@ -61,7 +66,7 @@ object KloudInstance {
 
         suspendCancellableCoroutine { continuation ->
             Runtime.getRuntime().addShutdownHook(Thread {
-                redis.publishEvent(RedisNames.CLOUD, CloudStoppedEvent())
+                redis.emit(RedisNames.CLOUD, CloudStoppedEvent())
                 serverManager.cleanupCurrent()
                 continuation.resume(Unit) { cause, _, _ ->
                     logger.info("Server shutdown due to: $cause")

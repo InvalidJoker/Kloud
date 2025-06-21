@@ -16,6 +16,9 @@ import de.joker.kloud.master.Config
 import de.joker.kloud.master.secret.SecretManager
 import de.joker.kloud.master.redis.RedisConnector
 import de.joker.kloud.master.template.TemplateManager
+import de.joker.kloud.master.template.image.ImageManager
+import de.joker.kloud.shared.InternalApi
+import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.templates.Template
 import de.joker.kloud.shared.utils.logger
@@ -36,6 +39,7 @@ class DockerIntegration : KoinComponent {
     val redis: RedisConnector by inject()
     val secretManager: SecretManager by inject()
     val templates: TemplateManager by inject()
+    val images: ImageManager by inject()
 
     val scope = CoroutineScope(Dispatchers.IO)
 
@@ -74,8 +78,8 @@ class DockerIntegration : KoinComponent {
             logger.info("kloud_network already exists.")
         }
 
-        templates.listTemplates().forEach {
-            val success = DockerUtils.pullImage(dockerClient, it.image)
+        images.listImages().forEach {
+            val success = DockerUtils.pullImage(dockerClient, it.image, it.defaultVersion)
             if (success) {
                 logger.info("Image ${it.image} pulled successfully.")
             } else {
@@ -83,6 +87,20 @@ class DockerIntegration : KoinComponent {
             }
         }
 
+        val templateVersions = templates.listTemplates().map {
+            val image = images.getImage(it.build.image) ?: throw IllegalStateException("Image ${it.build.image} not found for template ${it.name}")
+
+            image to it.build.imageVersion
+        }
+
+        templateVersions.forEach { (image, version) ->
+            val success = DockerUtils.pullImage(dockerClient, image.image, version)
+            if (success) {
+                logger.info("Template image ${image.image} pulled successfully.")
+            } else {
+                logger.error("Failed to pull template image ${image.image}.")
+            }
+        }
     }
 
     @Synchronized
@@ -223,6 +241,21 @@ class DockerIntegration : KoinComponent {
         velocityGlobalFile.writeText(tomlWriter.write(current))
     }
 
+    fun attachContainerLogs(containerId: String, onLog: (String) -> Unit) {
+        dockerClient.logContainerCmd(containerId)
+            .withStdOut(true)
+            .withStdErr(true)
+            .withFollowStream(true)
+            .withTailAll()
+            .exec(object : com.github.dockerjava.api.async.ResultCallback.Adapter<com.github.dockerjava.api.model.Frame>() {
+                override fun onNext(frame: com.github.dockerjava.api.model.Frame) {
+                    val log = String(frame.payload)
+                    onLog(log)
+                }
+            })
+    }
+
+    @OptIn(InternalApi::class)
     fun createContainer(
         id: String,
         template: Template,
@@ -230,6 +263,10 @@ class DockerIntegration : KoinComponent {
         onCreated: ((container: CreateContainerResponse, port: Int) -> Unit)? = null,
         onFinished: ((container: CreateContainerResponse, port: Int) -> Unit)? = null,
     ) {
+
+        val img = images.getImage(template.build.image)
+            ?: throw IllegalStateException("Image ${template.build.image} not found for template ${template.name}")
+
         val free = if (template.dynamic == null && template.forcedPort != null) {
             if (DockerUtils.isPortAvailable(template.forcedPort!!)) {
                 template.forcedPort!!
@@ -243,7 +280,7 @@ class DockerIntegration : KoinComponent {
         }
 
         val ports = mapOf( // TODO: make this dynamic
-            free to 25565
+            free to img.defaultInternalPort
         ).map { (hostPort, containerPort) ->
             PortBinding.parse("$hostPort:$containerPort")
         }
@@ -254,7 +291,8 @@ class DockerIntegration : KoinComponent {
             Config.redisHost
         }
 
-        val fullEnv = template.environment.toMutableMap().apply {
+        val fullEnv = img.environment.toMutableMap().apply {
+            putAll(template.environment)
             putIfAbsent("KLOUD_TEMPLATE", template.name)
             putIfAbsent("EULA", "TRUE")
             putIfAbsent("ENABLE_RCON", "false")
@@ -265,7 +303,6 @@ class DockerIntegration : KoinComponent {
             putIfAbsent("KLOUD_API_TOKEN", Config.apiToken)
             putIfAbsent("KLOUD_API_PORT", Config.backendPort.toString())
             putIfAbsent("KLOUD_ID", id)
-
         }
 
         if (template.type == ServerType.PROXIED_SERVER) {
@@ -365,7 +402,7 @@ class DockerIntegration : KoinComponent {
                 if (secretBind != null) add(secretBind)
             }
 
-            val containerCmd = dockerClient.createContainerCmd(template.image)
+            val containerCmd = dockerClient.createContainerCmd("${img.image}:${template.build.imageVersion}")
                 .withName(serverName)
                 .withTty(true)
                 .withAttachStdout(true)
@@ -387,7 +424,21 @@ class DockerIntegration : KoinComponent {
 
             onCreated?.invoke(container, free)
 
+            val line = img.startedMessageRegexPattern
+
             startContainerInBackground(container.id) {
+                scope.launch {
+                    attachContainerLogs(container.id) { log ->
+                        if (log.contains(line)) {
+                            val server = redis.getServerByInternal(id)
+                                ?: throw IllegalStateException("Server with ID $id not found in Redis after starting container ${template.name}")
+
+                            redis.changeServerState(server, ServerState.RUNNING)
+                            logger.info("Container ${template.name} started successfully with ID ${container.id}")
+                        }
+                    }
+                }
+
                 onFinished?.invoke(container, free)
             }
             logger.info("Container ${template.name} created with ID ${container.id}")
