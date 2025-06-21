@@ -17,9 +17,8 @@ import de.joker.kloud.master.secret.SecretManager
 import de.joker.kloud.master.redis.RedisConnector
 import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.master.template.image.ImageManager
+import de.joker.kloud.shared.InternalApi
 import de.joker.kloud.shared.events.ServerState
-import de.joker.kloud.shared.events.ServerUpdateStateEvent
-import de.joker.kloud.shared.redis.RedisNames
 import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.templates.Template
 import de.joker.kloud.shared.utils.logger
@@ -256,6 +255,7 @@ class DockerIntegration : KoinComponent {
             })
     }
 
+    @OptIn(InternalApi::class)
     fun createContainer(
         id: String,
         template: Template,
@@ -433,11 +433,7 @@ class DockerIntegration : KoinComponent {
                             val server = redis.getServerByInternal(id)
                                 ?: throw IllegalStateException("Server with ID $id not found in Redis after starting container ${template.name}")
 
-                            val event = ServerUpdateStateEvent(
-                                server = server,
-                                state = ServerState.RUNNING
-                            )
-                            redis.publishEvent(RedisNames.SERVERS, event)
+                            redis.changeServerState(server, ServerState.RUNNING)
                             logger.info("Container ${template.name} started successfully with ID ${container.id}")
                         }
                     }

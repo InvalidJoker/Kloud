@@ -6,7 +6,6 @@ import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.shared.InternalApi
 import de.joker.kloud.shared.events.CloudStartedEvent
 import de.joker.kloud.shared.events.ServerState
-import de.joker.kloud.shared.events.ServerUpdateStateEvent
 import de.joker.kloud.shared.redis.RedisNames
 import de.joker.kloud.shared.server.SerializableServer
 import de.joker.kloud.shared.server.ServerData
@@ -35,7 +34,7 @@ class ServerManager : KoinComponent {
         launchShutdownMonitor()
         launchStaticServers()
 
-        redis.publishEvent(RedisNames.CLOUD, CloudStartedEvent())
+        redis.emit(RedisNames.CLOUD, CloudStartedEvent())
     }
 
 
@@ -55,8 +54,6 @@ class ServerManager : KoinComponent {
         val containers = docker.getContainers()
 
         containers.forEach { container ->
-
-
             try {
                 val isRunning = docker.getContainerState(container.id)?.running ?: false
                 if (isRunning) {
@@ -68,11 +65,7 @@ class ServerManager : KoinComponent {
             }
 
             val server = redis.getServerByContainer(container.id) ?: return@forEach
-            val stoppedEvent = ServerUpdateStateEvent(
-                server,
-                ServerState.GONE,
-            )
-            redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
+            redis.changeServerState(server, ServerState.GONE)
         }
 
         val runningFiles = File("./running")
@@ -92,11 +85,7 @@ class ServerManager : KoinComponent {
 
         docker.stopContainerInBackground(server.containerId) {
             redis.removeServer(id)
-            val stoppedEvent = ServerUpdateStateEvent(
-                server,
-                ServerState.GONE
-            )
-            redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
+            redis.changeServerState(server, ServerState.GONE)
             scope.launch {
                 createServer(server.template, server.serverData)
             }
@@ -131,11 +120,7 @@ class ServerManager : KoinComponent {
 
         docker.stopContainerInBackground(server.containerId) {
             redis.removeServer(id)
-            val stoppedEvent = ServerUpdateStateEvent(
-                server,
-                ServerState.GONE
-            )
-            redis.publishEvent(RedisNames.SERVERS, stoppedEvent)
+            redis.changeServerState(server, ServerState.GONE)
         }
 
         return true
@@ -185,12 +170,7 @@ class ServerManager : KoinComponent {
                         connectionPort = port
                     )
                     redis.saveServer(serializableServer)
-
-                    val event = ServerUpdateStateEvent(
-                        server = serializableServer,
-                        state = ServerState.STARTING
-                    )
-                    redis.publishEvent(RedisNames.SERVERS, event)
+                    redis.changeServerState(serializableServer, ServerState.STARTING)
                 } catch (e: Exception) {
                     logger.error("Failed to create server $containerName: ${e.message}")
                 }
@@ -220,8 +200,7 @@ class ServerManager : KoinComponent {
             if (notRunning) {
                 logger.warn("Removing non-running server: ${server.serverName}")
                 redis.removeServer(server.internalId)
-
-                redis.publishEvent(RedisNames.SERVERS, ServerUpdateStateEvent(server, ServerState.GONE))
+                redis.changeServerState(server, ServerState.GONE)
             }
         }
     }

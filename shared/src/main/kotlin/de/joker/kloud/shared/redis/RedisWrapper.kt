@@ -2,6 +2,8 @@ package de.joker.kloud.shared.redis
 
 import de.joker.kloud.shared.InternalApi
 import de.joker.kloud.shared.events.IEvent
+import de.joker.kloud.shared.events.ServerState
+import de.joker.kloud.shared.events.ServerUpdateStateEvent
 import de.joker.kloud.shared.server.SerializableServer
 import de.joker.kloud.shared.utils.logger
 import de.joker.kutils.core.tools.Environment
@@ -104,7 +106,32 @@ abstract class RedisWrapper(
         }
     }
 
-    fun publishEvent(channel: String, event: IEvent): Boolean {
+    @InternalApi
+    fun changeServerState(internalId: String, newState: ServerState): Boolean {
+        val server = getServerByInternal(internalId)
+        if (server == null) {
+            logger.error("Server with ID: $internalId not found.")
+            return false
+        }
+        return changeServerState(server, newState)
+    }
+
+    @InternalApi
+    fun changeServerState(server: SerializableServer, newState: ServerState): Boolean {
+        return try {
+            val stoppedEvent = ServerUpdateStateEvent(
+                server,
+                newState,
+            )
+            emit(RedisNames.SERVERS, stoppedEvent)
+            true
+        } catch (e: Exception) {
+            logger.error("Failed to change state for server with ID: ${server.internalId}", e)
+            false
+        }
+    }
+
+    fun emit(channel: String, event: IEvent): Boolean {
         return try {
             redisAdapter.emitEvent(channel, event)
             true
@@ -114,7 +141,7 @@ abstract class RedisWrapper(
         }
     }
 
-    fun publishEvent(channel: RedisNames, event: IEvent): Boolean {
-        return publishEvent(channel.channel, event)
+    fun emit(channel: RedisNames, event: IEvent): Boolean {
+        return emit(channel.channel, event)
     }
 }

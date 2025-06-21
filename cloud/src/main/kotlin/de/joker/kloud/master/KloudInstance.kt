@@ -66,7 +66,7 @@ object KloudInstance {
 
         suspendCancellableCoroutine { continuation ->
             Runtime.getRuntime().addShutdownHook(Thread {
-                redis.publishEvent(RedisNames.CLOUD, CloudStoppedEvent())
+                redis.emit(RedisNames.CLOUD, CloudStoppedEvent())
                 serverManager.cleanupCurrent()
                 continuation.resume(Unit) { cause, _, _ ->
                     logger.info("Server shutdown due to: $cause")
