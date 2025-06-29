@@ -34,19 +34,25 @@ class ServerHandler : RedisHandler {
 
                 val proxyServer: ProxyServer by inject(ProxyServer::class.java)
 
-                when (event.state) {
+                val msg = when (event.state) {
+                    ServerState.STARTING -> {
+                        if (!ConfigManager.config.startingMessageEnabled || ConfigManager.config.startingMessage.isBlank()) return
+
+                        text(
+                            ConfigManager.config.startingMessage
+                                .replace("{serverName}", event.server.serverName)
+                            )
+
+                    }
                     ServerState.RUNNING -> {
                         proxyServer.registerServer(event.server.serverInfo)
 
-                        if (!ConfigManager.config.startNotificationEnabled) return
+                        if (!ConfigManager.config.onlineNotificationEnabled || ConfigManager.config.onlineMessage.isBlank()) return
 
-                        proxyServer.allPlayers.filter { player ->
-                            player.hasPermission("kloud.notify")
-                        }.forEach { player ->
-                            player.sendMessage(text(ConfigManager.config.startMessage
+                        text(
+                            ConfigManager.config.onlineMessage
                                 .replace("{serverName}", event.server.serverName)
-                            ))
-                        }
+                        )
                     }
 
                     ServerState.GONE -> {
@@ -57,18 +63,17 @@ class ServerHandler : RedisHandler {
                             logger.warn("Server ${event.server.serverName} not found in proxy.")
                         }
 
-                        if (!ConfigManager.config.stopNotificationEnabled) return
+                        if (!ConfigManager.config.stopNotificationEnabled || ConfigManager.config.stopMessage.isBlank()) return
 
-                        proxyServer.allPlayers.filter { player ->
-                            player.hasPermission("kloud.notify")
-                        }.forEach { player ->
-                            player.sendMessage(text(ConfigManager.config.stopMessage
+                        text(ConfigManager.config.stopMessage
                                 .replace("{serverName}", event.server.serverName)
-                            ))
-                        }
+                            )
                     }
-
-                    else -> {}
+                }
+                proxyServer.allPlayers.filter { player ->
+                    player.hasPermission("kloud.notify")
+                }.forEach { player ->
+                    player.sendMessage(msg)
                 }
             }
 

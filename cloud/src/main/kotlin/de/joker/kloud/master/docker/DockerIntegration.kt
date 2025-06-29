@@ -295,7 +295,6 @@ class DockerIntegration : KoinComponent {
             putAll(template.environment)
             putIfAbsent("KLOUD_TEMPLATE", template.name)
             putIfAbsent("EULA", "TRUE")
-            putIfAbsent("ENABLE_RCON", "false")
             putIfAbsent("KLOUD_SERVER_NAME", serverName)
             putIfAbsent("KLOUD_SERVER_PORT", free.toString())
             putIfAbsent("KLOUD_REDIS_HOST", redisHost)

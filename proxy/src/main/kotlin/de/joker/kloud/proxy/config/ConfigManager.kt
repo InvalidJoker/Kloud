@@ -16,9 +16,11 @@ object ConfigManager {
             path.parent?.toFile()?.mkdirs()
 
             val default = PluginConfig(
-                startNotificationEnabled = true,
+                startingMessageEnabled = true,
+                startingMessage = "<gray>[<yellow>⚡<gray>] <white>{serverName}",
+                onlineNotificationEnabled = true,
                 stopNotificationEnabled = true,
-                startMessage = "<gray>[<green>+<gray>] <white>{serverName}",
+                onlineMessage = "<gray>[<green>+<gray>] <white>{serverName}",
                 stopMessage = "<gray>[<red>-<gray>] <white>{serverName}",
                 cloudCommandEnabled = true
             )

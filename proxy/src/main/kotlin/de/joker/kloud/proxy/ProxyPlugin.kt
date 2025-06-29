@@ -81,12 +81,6 @@ class ProxyPlugin @Inject constructor(
             CloudCommand.register();
         }
 
-        val api: APIWrapper by inject(APIWrapper::class.java)
-
-        GlobalScope.launch {
-            println(api.getTemplates())
-        }
-
         server.eventManager.register(this, ConnectionListener())
         server.eventManager.register(this, KickListener())
 
