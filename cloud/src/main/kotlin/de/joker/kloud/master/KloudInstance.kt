@@ -20,36 +20,31 @@ import org.koin.logger.slf4jLogger
 
 object KloudInstance {
 
-    private val kloudModules = listOf(
-        module { single { DockerIntegration() } },
-        module { single { RedisConnector() } },
-        module { single { TemplateManager() } },
-        module { single { ImageManager() } },
-        module { single { ServerManager() } },
-        module { single { SecretManager() } },
-        module { single { CloudBackend() } },
-        module { single { globalJson } },
-    )
-
     @OptIn(InternalSerializationApi::class)
     suspend fun start() {
+        val docker = DockerIntegration()
+        val redis = RedisConnector()
+        val image = ImageManager()
+        val template = TemplateManager()
+        val serverManager = ServerManager()
+        val secretManager = SecretManager()
+        val backend = CloudBackend()
+
         startKoin {
             slf4jLogger()
             modules(
-                kloudModules +
-                        module {
-                            single { globalJson }
-                        }
+                module {
+                    single { docker }
+                    single { redis }
+                    single { image }
+                    single { template }
+                    single { serverManager }
+                    single { secretManager }
+                    single { backend }
+                    single { globalJson }
+                }
             )
         }
-
-        val redis: RedisConnector by inject(RedisConnector::class.java)
-        val docker: DockerIntegration by inject(DockerIntegration::class.java)
-        val image: ImageManager by inject(ImageManager::class.java)
-        val template: TemplateManager by inject(TemplateManager::class.java)
-        val serverManager: ServerManager by inject(ServerManager::class.java)
-        val secretManager: SecretManager by inject(SecretManager::class.java)
-        val backend: CloudBackend by inject(CloudBackend::class.java)
 
         secretManager.loadSecrets()
 

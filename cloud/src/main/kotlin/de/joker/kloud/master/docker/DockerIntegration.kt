@@ -19,6 +19,8 @@ import de.joker.kloud.master.template.TemplateManager
 import de.joker.kloud.master.template.image.ImageManager
 import de.joker.kloud.shared.InternalApi
 import de.joker.kloud.shared.events.ServerState
+import de.joker.kloud.shared.server.SerializableServer
+import de.joker.kloud.shared.server.ServerData
 import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.templates.Template
 import de.joker.kloud.shared.utils.logger
@@ -174,11 +176,11 @@ class DockerIntegration : KoinComponent {
             }
     }
 
-    fun deleteServerDirectory(serverName: String) {
-        val serverDir = File("./running/$serverName")
+    fun deleteServerDirectory(server: SerializableServer) {
+        val serverDir = File("./running/${server.internalId}")
         if (serverDir.exists()) {
             serverDir.deleteRecursively()
-            logger.info("Deleted server directory for $serverName")
+            logger.info("Deleted server directory for server: ${server.internalId}")
         }
     }
 
@@ -326,7 +328,7 @@ class DockerIntegration : KoinComponent {
 
                 file
             } else {
-                val runningDirectory = File("./running/$serverName")
+                val runningDirectory = File("./running/${id}")
                 if (runningDirectory.exists()) {
                     runningDirectory.deleteRecursively()
                 }

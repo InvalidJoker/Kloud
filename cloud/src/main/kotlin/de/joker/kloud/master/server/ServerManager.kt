@@ -54,25 +54,41 @@ class ServerManager : KoinComponent {
         val containers = docker.getContainers()
 
         containers.forEach { container ->
-            try {
-                val isRunning = docker.getContainerState(container.id)?.running ?: false
-                if (isRunning) {
-                    logger.info("Stopping server: ${container.name} (${container.id})")
-                    docker.stopContainerBlocking(container.id)
-                }
-            } catch (e: Exception) {
-                logger.error("Failed to cleanup server ${container.name} (${container.id}): ${e.message}")
+            val redisServer = redis.getServerByContainer(container.id)
+
+            val template = if (redisServer != null) {
+                templates.getTemplate(redisServer.template.name)
+            } else {
+                null
             }
 
-            val server = redis.getServerByContainer(container.id) ?: return@forEach
-            redis.changeServerState(server, ServerState.GONE)
+            if (redisServer == null || redisServer.template != template) {
+                try {
+                    val isRunning = docker.getContainerState(container.id)?.running ?: false
+                    if (isRunning) {
+                        logger.info("Stopping server: ${container.name} (${container.id})")
+                        docker.stopContainerBlocking(container.id)
+                    }
+                } catch (e: Exception) {
+                    logger.error("Failed to cleanup server ${container.name} (${container.id}): ${e.message}")
+                }
+            }
         }
 
         val runningFiles = File("./running")
 
         if (runningFiles.exists()) {
-            runningFiles.deleteRecursively()
-            logger.info("Deleted running files directory.")
+            runningFiles.listFiles()?.forEach { file ->
+                try {
+                    val id = file.nameWithoutExtension
+                    if (redis.getServerByInternal(id) == null) {
+                        logger.info("Removing stale running file: ${file.name}")
+                        file.delete()
+                    }
+                } catch (e: Exception) {
+                    logger.error("Failed to remove stale running file ${file.name}: ${e.message}")
+                }
+            }
         }
     }
 
@@ -86,6 +102,7 @@ class ServerManager : KoinComponent {
         docker.stopContainerInBackground(server.containerId) {
             redis.removeServer(id)
             redis.changeServerState(server, ServerState.GONE)
+            docker.deleteServerDirectory(server)
             scope.launch {
                 createServer(server.template, server.serverData)
             }
@@ -121,6 +138,7 @@ class ServerManager : KoinComponent {
         docker.stopContainerInBackground(server.containerId) {
             redis.removeServer(id)
             redis.changeServerState(server, ServerState.GONE)
+            docker.deleteServerDirectory(server)
         }
 
         return true
@@ -201,6 +219,7 @@ class ServerManager : KoinComponent {
                 logger.warn("Removing non-running server: ${server.serverName}")
                 redis.removeServer(server.internalId)
                 redis.changeServerState(server, ServerState.GONE)
+                docker.deleteServerDirectory(server)
             }
         }
     }

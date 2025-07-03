@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package manager.v1;
+
+import "generic/v1/core.proto";
+
+message StopCloudRequest {
+  bool with_servers = 1; // Indicates if the game is for all servers
+}
+
+service ManagerService {
+  rpc StopCloud(StopCloudRequest) returns (generic.v1.GenericResponse);
+}
