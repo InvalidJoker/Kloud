@@ -50,7 +50,7 @@ class ServerManager : KoinComponent {
         }
     }
 
-    fun cleanupCurrent() {
+    fun cleanupCurrent(stopAll: Boolean = false) {
         val containers = docker.getContainers()
 
         containers.forEach { container ->
@@ -62,7 +62,7 @@ class ServerManager : KoinComponent {
                 null
             }
 
-            if (redisServer == null || redisServer.template != template) {
+            if ((redisServer == null || redisServer.template != template) || stopAll) {
                 try {
                     val isRunning = docker.getContainerState(container.id)?.running ?: false
                     if (isRunning) {

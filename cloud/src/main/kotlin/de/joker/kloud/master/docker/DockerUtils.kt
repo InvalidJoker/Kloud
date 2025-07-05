@@ -3,6 +3,7 @@ package de.joker.kloud.master.docker
 import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.command.PullImageResultCallback
 import com.github.dockerjava.api.model.PullResponseItem
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 
 object DockerUtils {
@@ -27,7 +28,10 @@ object DockerUtils {
 
     fun isPortAvailable(port: Int): Boolean {
         return try {
-            ServerSocket(port).use { true } // Try to open the port
+            ServerSocket().use { serverSocket ->
+                serverSocket.bind(InetSocketAddress(port))
+                true
+            }
         } catch (e: Exception) {
             false // Port is already in use
         }

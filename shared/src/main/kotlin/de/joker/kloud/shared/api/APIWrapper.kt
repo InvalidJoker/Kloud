@@ -19,8 +19,8 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 
 class APIWrapper(
-    private val host: String,
-    private val port: Int,
+    host: String,
+    port: Int,
     token: String,
 ) {
     private val channel: ManagedChannel = ManagedChannelBuilder.forAddress(host, port)

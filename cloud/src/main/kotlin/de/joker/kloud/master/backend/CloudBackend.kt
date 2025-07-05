@@ -2,6 +2,7 @@ package de.joker.kloud.master.backend
 
 import de.joker.kloud.master.Config
 import de.joker.kloud.master.backend.auth.AuthInterceptor
+import de.joker.kloud.master.core.ManagerService
 import de.joker.kloud.master.server.ServerService
 import de.joker.kloud.master.template.TemplatesService
 import de.joker.kloud.shared.utils.logger
@@ -17,6 +18,7 @@ class CloudBackend : KoinComponent {
         return ServerBuilder.forPort(Config.BACKEND_PORT)
             .addService(TemplatesService())
             .addService(ServerService())
+            .addService(ManagerService())
             .intercept(AuthInterceptor(Config.apiToken))
             .build()
     }

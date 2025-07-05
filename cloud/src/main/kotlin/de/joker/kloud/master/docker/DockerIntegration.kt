@@ -20,7 +20,6 @@ import de.joker.kloud.master.template.image.ImageManager
 import de.joker.kloud.shared.InternalApi
 import de.joker.kloud.shared.events.ServerState
 import de.joker.kloud.shared.server.SerializableServer
-import de.joker.kloud.shared.server.ServerData
 import de.joker.kloud.shared.server.ServerType
 import de.joker.kloud.shared.templates.Template
 import de.joker.kloud.shared.utils.logger
