@@ -95,7 +95,6 @@ utilities = [
     "kotlinDotenv",
     "caffeine"
 ]
-redis = ["redis"]
 koin = ["koinCore", "koinKtor", "koinSlf4j"]
 commandapi = [
     "commandapi-velocity",

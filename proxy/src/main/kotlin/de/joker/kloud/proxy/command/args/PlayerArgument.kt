@@ -5,10 +5,17 @@ import de.joker.kloud.proxy.ProxyPlugin
 import dev.jorel.commandapi.CommandAPICommand
 import dev.jorel.commandapi.CommandTree
 import dev.jorel.commandapi.arguments.Argument
+import dev.jorel.commandapi.arguments.ArgumentSuggestions
 import dev.jorel.commandapi.arguments.TextArgument
 
 open class PlayerArgument(nodeName: String) : CustomArgument<Player, String>(
-    TextArgument(nodeName),
+    TextArgument(nodeName)
+        .replaceSuggestions(
+            ArgumentSuggestions.strings { info ->
+                val players = ProxyPlugin.instance.server.allPlayers.map { it.username }
+                players.toTypedArray()
+            }
+        ),
     { info ->
         val raw = info.currentInput
 

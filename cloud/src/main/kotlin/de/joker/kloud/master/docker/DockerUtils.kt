@@ -5,9 +5,12 @@ import com.github.dockerjava.api.command.PullImageResultCallback
 import com.github.dockerjava.api.model.PullResponseItem
 import java.net.InetSocketAddress
 import java.net.ServerSocket
+import java.util.concurrent.TimeUnit
 
 object DockerUtils {
-    val portsFound = mutableListOf<Int>()
+    private val portsFound = mutableMapOf<Int, Long>()
+    private val TTL = TimeUnit.MINUTES.toMillis(3)
+
     fun pullImage(client: DockerClient, image: String, tag: String = "latest"): Boolean {
         var success = true
         val callback = object : PullImageResultCallback() {
@@ -32,7 +35,7 @@ object DockerUtils {
                 serverSocket.bind(InetSocketAddress(port))
                 true
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false // Port is already in use
         }
     }
@@ -40,18 +43,25 @@ object DockerUtils {
     fun findClosestPortTo25565(range: Int = 100): Int? {
         val targetPort = 25565
 
+        cleanupExpiredPorts() // Clean up expired ports before searching
+
         // Check ports around 25565, alternating above and below
         for (offset in 0..range) {
             val candidates = listOf(targetPort + offset, targetPort - offset).distinct()
                 .filter { it in 1024..65535 && !portsFound.contains(it) }
             for (port in candidates) {
                 if (isPortAvailable(port)) {
-                    portsFound.add(port) // Mark this port as found
+                    portsFound[port] = System.currentTimeMillis() + TTL
                     return port // Return the first available port found
                 }
             }
         }
 
         return null // No port found in range
+    }
+
+    private fun cleanupExpiredPorts() {
+        val now = System.currentTimeMillis()
+        portsFound.entries.removeIf { (_, expiry) -> expiry < now }
     }
 }

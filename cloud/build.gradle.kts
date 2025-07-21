@@ -10,7 +10,7 @@ plugins {
 dependencies {
     implementation(libs.bundles.backend)
     implementation(libs.bundles.utilities)
-    implementation(libs.bundles.redis)
+    implementation(libs.redis)
     implementation(libs.bundles.koin)
     implementation(libs.yaml)
     implementation(libs.bundles.grpc)

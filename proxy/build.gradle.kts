@@ -14,12 +14,11 @@ dependencies {
     implementation(project(":shared"))
     shadow(project(":shared"))
 
-
     compileOnly(libs.velocity)
     annotationProcessor(libs.velocity)
 
-    implementation(libs.bundles.redis)
-    shadow(libs.bundles.redis)
+    implementation(libs.redis)
+    shadow(libs.redis)
     implementation(libs.bundles.koin)
     shadow(libs.bundles.koin)
     implementation(libs.stacked)
